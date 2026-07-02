@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zombie Multiplayer Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="landingScreen">
+        <h1>🃏 Real-Time Zombie</h1>
+        <input type="text" id="playerName" placeholder="Enter your name" /><br><br>
+        
+        <button onclick="createRoom()">Create New Game</button>
+        <hr style="width: 50%; margin: 20px auto;">
+        <input type="text" id="roomCodeInput" placeholder="4-Letter Room Code" />
+        <button onclick="joinRoom()">Join Game</button>
+    </div>
+
+    <div id="lobbyScreen" style="display: none;">
+        <h2>Room Code: <span id="displayRoomCode" style="color: #007bff;">----</span></h2>
+        <h3>Players in Lobby:</h3>
+        <ul id="playerList"></ul>
+        <button id="startGameBtn" style="display: none;" onclick="triggerStartGame()">Start Game</button>
+    </div>
+    <div id="gameScreen" style="display: none;">
+        <div class="game-header">
+            <h3 id="turnIndicator"></h3>
+        </div>
+
+        <div class="table-container">
+        
+            <div class="table-center">
+                <div id="discardPile">🎴</div>
+                <div id="actionText">Game Started</div>
+            </div>
+
+            <div id="slot-top" class="player-slot position-top"></div>
+            <div id="slot-left" class="player-slot position-left"></div>
+            <div id="slot-right" class="player-slot position-right"></div>
+        
+            <div id="slot-bottom" class="player-slot position-bottom">
+                <div class="player-info"><strong>You</strong></div>
+                <div id="myHandArea" class="cards-hand"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>

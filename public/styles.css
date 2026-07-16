@@ -137,3 +137,23 @@ body {
     border-color: #38bdf8; /* Blue highlight glow from your screenshot */
     box-shadow: 0 0 12px #38bdf8;
 }
+
+/* Styling for players not seated at the main table */
+.hidden-players-ui {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    text-align: right;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px 15px;
+    border-radius: 8px;
+    z-index: 10;
+}
+
+.hidden-players-ui h4 {
+    margin: 0 0 10px 0;
+    color: #a1a1aa;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}

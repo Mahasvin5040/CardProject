@@ -182,17 +182,25 @@ io.on('connection', (socket) => {
     } while (room.players[room.currentTurnIndex].hand.length === 0 && attempts < room.players.length);
 
     // Check if Game Over (Only 1 player left holding the Joker)
+    sendPrivateHands(roomCode);
+    broadcastGameState(roomCode);
+
+    // ==========================================
+    // 2. CHECK FOR GAME OVER CONDITION
+    // ==========================================
     const activePlayersWithCards = room.players.filter(p => p.hand.length > 0);
     
     if (activePlayersWithCards.length === 1) {
       room.gameState = 'game-over';
-      io.to(roomCode).emit('game-over', { loserName: activePlayersWithCards[0].name });
-      return;
+      
+      // Wait 1.5 seconds before showing the Game Over screen
+      // so players can watch the final match happen!
+      setTimeout(() => {
+          io.to(roomCode).emit('game-over', { 
+              loserName: activePlayersWithCards[0].name 
+          });
+      }, 1500); 
     }
-
-    // Otherwise, continue game: update cards and layout state
-    sendPrivateHands(roomCode);
-    broadcastGameState(roomCode);
   });
 
   // 4. EVENT: Disconnect

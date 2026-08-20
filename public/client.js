@@ -28,6 +28,25 @@ function joinRoom() {
     socket.emit('join-room', { roomCode: code, playerName: name });
 }
 
+function getCardImagePath(card) {
+    if (card.value === 'z' || card.isZombie) {
+        return '/assets/cards/JokerW.png';
+    }
+
+    // Convert suits to simple letters: ♥ -> H, ♦ -> D, ♣ -> C, ♠ -> S
+    const suitMap = { '♥': 'H', '♦': 'D', '♣': 'C', '♠': 'S' };
+    const suitLetter = suitMap[card.suit] || 'X';
+
+    // Map values (A = 1, J = 11, Q = 12, K = 13) or keep numeric values
+    let numericValue = card.value;
+    if (card.value === 'A') numericValue = 1;
+    if (card.value === 'J') numericValue = 11;
+    if (card.value === 'Q') numericValue = 12;
+    if (card.value === 'K') numericValue = 13;
+
+    return `/assets/cards/${suitLetter}${numericValue}.png`;
+}
+
 // --- SERVER EVENT LISTENERS ---
 
 socket.on('room-created', ({ roomCode }) => {
@@ -71,9 +90,10 @@ socket.on('game-started', () => {
 // Receive your secret cards safely from the server referee
 socket.on('your-hand', (hand) => {
     const handArea = document.getElementById('myHandArea');
-    handArea.innerHTML = hand.map(c => {
-        const color = (c.suit === '♥' || c.suit === '♦') ? 'red' : 'black';
-        return `<div class="card" style="color: ${color};">${c.value}<br>${c.suit}</div>`;
+    
+    handArea.innerHTML = hand.map(card => {
+        const imagePath = getCardImagePath(card);
+        return `<div class="card" style="background-image: url('${imagePath}');"></div>`;
     }).join('');
 });
 
@@ -138,9 +158,9 @@ socket.on('game-state-update', ({ players, currentTurnId }) => {
         let cardsHTML = '';
         for (let c = 0; c < player.cardCount; c++) {
             if (amIActiveTurn && isTargetNeighbor) {
-                cardsHTML += `<button class="opponent-card-btn active-target" onclick="sendDrawRequest('${player.id}', ${c})">🎴</button>`;
+                cardsHTML += `<button class="opponent-card-btn active-target" onclick="sendDrawRequest('${player.id}', ${c})"></button>`;
             } else {
-                cardsHTML += `<span class="opponent-card-btn" style="cursor: default;">🎴</span>`;
+                cardsHTML += `<span class="opponent-card-btn" style="cursor: default;"></span>`;
             }
         }
 

@@ -138,6 +138,38 @@ body {
     box-shadow: 0 0 12px #38bdf8;
 }
 
+/* Ensure crisp pixel scaling without blur */
+.card, 
+.opponent-card-btn {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges; /* Fallback for older browsers */
+    width: 60px;                  /* Upscaled card width */
+    height: 90px;                 /* Upscaled card height */
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Balatro-style subtle hover tilt effect */
+.card:hover {
+    transform: translateY(-6px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Face-down opponent cards */
+.opponent-card-btn {
+    background-image: url('/assets/cards/BackBlue.png');
+    border: none;
+    cursor: pointer;
+}
+
+/* Highlighted target for drawing */
+.opponent-card-btn.active-target {
+    filter: drop-shadow(0 0 6px #38bdf8);
+}
+
 /* Styling for players not seated at the main table */
 .hidden-players-ui {
     position: absolute;

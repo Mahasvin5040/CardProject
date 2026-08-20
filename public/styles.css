@@ -104,6 +104,87 @@ body {
     width: 90%;
 }
 
+/* Constrain your slot to exactly 2/3 of the table width */
+.position-bottom {
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 66.66%; 
+}
+
+/* The container for your hand needs to support absolute positioning
+#myHandArea {
+    position: relative;
+    width: 100%;
+    height: 135px; /* 1.5x the height of the 90px opponent cards
+    margin-top: 10px;
+}
+*/
+
+#myHandArea {
+    display: flex;
+    justify-content: center;
+    width: 95%;
+    margin: 0 auto;
+    height: 174px; 
+}
+
+/* New specific class for YOUR larger 1.5x cards */
+.my-card {
+    position: absolute; 
+    width: 90px;   /* 1.5x of 60px */
+    height: 135px; /* 1.5x of 90px */
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    /* Add a shadow on the left edge to define the overlap cleanly */
+    box-shadow: -3px 0 8px rgba(0,0,0,0.5); 
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+/* Hover effect pulls the card up and forces it to the very front */
+.my-card:hover {
+    transform: translateY(-20px) scale(1.05);
+    z-index: 100 !important; 
+    box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+}
+/* 
+  Card is 80px wide. 1/10 overlap = 9px. 
+  90px - 9px = 81px. 
+  This sets the default gap to 81px but allows shrinking when crowded.
+*/
+.my-card-wrapper {
+    position: relative;
+    flex: 0 1 108px; 
+}
+
+/* The very last card still gets its full 90px width so the right edge isn't clipped */
+.my-card-wrapper:last-child {
+    flex: 0 0 120px; 
+}
+
+.my-card-visual {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 120px; 
+    height: 174px;
+    image-rendering: pixelated;
+    background-size: cover;
+    border-radius: 6px;
+    box-shadow: -3px 0 8px rgba(0, 0, 0, 0.4); 
+    transition: transform 0.15s ease;
+}
+
+.my-card-wrapper:hover .my-card-visual {
+    transform: translateY(-15px);
+    z-index: 50;
+}
+
 /* Card layout adjustments */
 .cards-hand {
     display: flex;

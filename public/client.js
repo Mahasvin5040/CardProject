@@ -88,12 +88,60 @@ socket.on('game-started', () => {
 });
 
 // Receive your secret cards safely from the server referee
+/*
+socket.on('your-hand', (hand) => {
+    const handArea = document.getElementById('myHandArea');
+    const numCards = hand.length;
+    
+    // Clear area if you have no cards
+    if (numCards === 0) {
+        handArea.innerHTML = '<div style="color: #a1a1aa; text-align: center; width: 100%;"><em>Safe!</em></div>';
+        return;
+    }
+
+    handArea.innerHTML = hand.map((card, index) => {
+        const imagePath = getCardImagePath(card);
+        let leftPos;
+
+        if (numCards === 1) {
+            // If only 1 card, lock it directly in the center 
+            // (50% minus half the 90px card width)
+            leftPos = `calc(50% - 45px)`; 
+        } else {
+            // Distribute cards smoothly from 0% to 100% of the container
+            const fraction = index / (numCards - 1);
+            
+            // Formula: Push right by %, but pull left by the card's width % to keep it inside the box
+            leftPos = `calc(${fraction * 100}% - ${fraction * 90}px)`;
+        }
+
+        // Apply the calculated position and a natural z-index
+        return `<div class="my-card" style="
+            background-image: url('${imagePath}'); 
+            left: ${leftPos}; 
+            z-index: ${index};">
+        </div>`;
+    }).join('');
+});
+*/
 socket.on('your-hand', (hand) => {
     const handArea = document.getElementById('myHandArea');
     
+    // Clear out the hand if you survived (0 cards left)
+    if (hand.length === 0) {
+        handArea.innerHTML = '<div style="color: #a1a1aa; margin-top: 50px;"><em>You are safe!</em></div>';
+        return;
+    }
+
+    // JavaScript dynamically builds the HTML string using the new classes
     handArea.innerHTML = hand.map(card => {
         const imagePath = getCardImagePath(card);
-        return `<div class="card" style="background-image: url('${imagePath}');"></div>`;
+        
+        return `
+            <div class="my-card-wrapper">
+                <div class="my-card-visual" style="background-image: url('${imagePath}');"></div>
+            </div>
+        `;
     }).join('');
 });
 

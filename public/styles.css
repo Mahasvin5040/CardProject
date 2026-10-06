@@ -65,43 +65,59 @@ body {
     top: 15px;
     left: 50%;
     transform: translateX(-50%);
+    width: 66.66%;
+    display: flex;
+    justify-content: center;
 }
 
 .position-left {
     top: 50%;
     left: 20px;
     transform: translateY(-50%);
+    height: 66.66%;
+    display: flex;
+    align-items: center;
 }
 
 .position-right {
     top: 50%;
     right: 20px;
     transform: translateY(-50%);
+    height: 66.66%;
+    display: flex;
+    align-items: center;
 }
 
-/* NEW: Target the flex containers inside the side slots to stack cards vertically */
-.position-left .side-hand-container,
-.position-right .side-hand-container {
-    flex-direction: column; /* Stack cards vertically */
+.player-slot-content {
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.side-hand-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     margin-top: 10px;
 }
 
-/* NEW: Rotate individual face-down cards on the sides */
-.position-left .opponent-card-btn {
-    transform: rotate(90deg);
-    margin: 5px 0; /* Add vertical breathing room instead of horizontal */
+.position-top .side-hand-container,
+.hidden-hand-container {
+    width: 100%;
+    height: 90px;
+    flex-direction: row;
 }
 
-.position-right .opponent-card-btn {
-    transform: rotate(-90deg);
-    margin: 5px 0;
-}
-
-.position-bottom {
-    bottom: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
+.position-left .side-hand-container,
+.position-right .side-hand-container {
+    height: 100%;
+    width: 90px;
+    flex-direction: column;
 }
 
 /* Constrain your slot to exactly 2/3 of the table width */
@@ -203,51 +219,80 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-/* Make face-down card buttons stack vertically or horizontally neatly */
-.opponent-card-btn {
-    background: #e14d43;
-    color: white;
-    border: 2px solid white;
-    border-radius: 6px;
-    padding: 8px;
-    font-size: 16px;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+/* Opponent cards visual design - same layout structure as my cards */
+.opponent-card-wrapper {
+    position: relative;
 }
-.opponent-card-btn.active-target {
-    border-color: #38bdf8; /* Blue highlight glow from your screenshot */
-    box-shadow: 0 0 12px #38bdf8;
+.position-top .opponent-card-wrapper,
+.hidden-hand-container .opponent-card-wrapper {
+    flex: 0 1 54px; /* 60px width - 6px overlap */
+    height: 90px;
+}
+.position-top .opponent-card-wrapper:last-child,
+.hidden-hand-container .opponent-card-wrapper:last-child {
+    flex: 0 0 60px;
 }
 
-/* Ensure crisp pixel scaling without blur */
-.card, 
-.opponent-card-btn {
+.position-left .opponent-card-wrapper,
+.position-right .opponent-card-wrapper {
+    flex: 0 1 54px; /* Rotated visual is 60px high - 6px overlap = 54px */
+    width: 90px;
+}
+.position-left .opponent-card-wrapper:last-child,
+.position-right .opponent-card-wrapper:last-child {
+    flex: 0 0 60px;
+}
+
+.opponent-card-visual {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60px;
+    height: 90px;
     image-rendering: pixelated;
-    image-rendering: crisp-edges; /* Fallback for older browsers */
-    width: 60px;                  /* Upscaled card width */
-    height: 90px;                 /* Upscaled card height */
-    border-radius: 4px;
+    image-rendering: crisp-edges;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-/* Balatro-style subtle hover tilt effect */
-.card:hover {
-    transform: translateY(-6px) scale(1.05);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-}
-
-/* Face-down opponent cards */
-.opponent-card-btn {
     background-image: url('/assets/cards/BackBlue.png');
-    border: none;
+    border-radius: 4px;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+/* Rotate visuals for sides */
+.position-left .opponent-card-visual {
+    transform: rotate(90deg);
+    transform-origin: center center;
+    top: 0; /* Adjusting so it stays in the 90x90 bounding box nicely */
+    left: 15px;
+}
+.position-right .opponent-card-visual {
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    top: 0;
+    left: 15px;
+}
+
+/* Hover Effects */
+.position-top .opponent-card-wrapper.clickable:hover .opponent-card-visual,
+.hidden-hand-container .opponent-card-wrapper.clickable:hover .opponent-card-visual {
+    transform: translateY(10px); /* Move down */
+    z-index: 50;
+}
+.position-left .opponent-card-wrapper.clickable:hover .opponent-card-visual {
+    transform: translateX(10px) rotate(90deg); /* Move right */
+    z-index: 50;
+}
+.position-right .opponent-card-wrapper.clickable:hover .opponent-card-visual {
+    transform: translateX(-10px) rotate(-90deg); /* Move left */
+    z-index: 50;
+}
+
+.opponent-card-wrapper.clickable {
     cursor: pointer;
 }
-
-/* Highlighted target for drawing */
-.opponent-card-btn.active-target {
+.opponent-card-visual.active-target {
     filter: drop-shadow(0 0 6px #38bdf8);
 }
 

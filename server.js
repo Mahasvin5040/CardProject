@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const rooms = {};
 
 function generateRoomCode() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const characters = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
   let result = '';
   for (let i = 0; i < 4; i++) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
@@ -39,7 +39,7 @@ function sendPrivateHands(roomCode) {
  */
 function broadcastGameState(roomCode) {
   const room = rooms[roomCode];
-  
+
   // Strip out full hand details for public update to prevent screen-peeking cheats
   const publicPlayers = room.players.map(p => ({
     id: p.id,
@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
   // 1. EVENT: Create Room
   socket.on('create-room', ({ playerName }) => {
     const roomCode = generateRoomCode();
-    
+
     rooms[roomCode] = {
       players: [],
       gameState: 'lobby',
@@ -71,7 +71,7 @@ io.on('connection', (socket) => {
     };
 
     console.log(`✨ New room created: ${roomCode} by ${playerName}`);
-    
+
     socket.join(roomCode);
     rooms[roomCode].players.push({ id: socket.id, name: playerName, hand: [] });
 
@@ -96,9 +96,9 @@ io.on('connection', (socket) => {
 
     socket.join(roomCode);
     rooms[roomCode].players.push({ id: socket.id, name: playerName, hand: [] });
-    
+
     console.log(`🚪 ${playerName} joined room: ${roomCode}`);
-    
+
     socket.emit('join-success', { roomCode });
     io.to(roomCode).emit('room-update', rooms[roomCode].players);
   });
@@ -106,7 +106,7 @@ io.on('connection', (socket) => {
   // 3. EVENT: Start Game (Triggered by Host)
   socket.on('start-game', ({ roomCode }) => {
     const room = rooms[roomCode];
-    
+
     // Safety checks
     if (!room) return;
     if (socket.id !== room.hostId) return; // Only host can start
@@ -146,7 +146,7 @@ io.on('connection', (socket) => {
     if (!room || room.gameState !== 'playing') return;
 
     const currentTurnPlayer = room.players[room.currentTurnIndex];
-    
+
     // Safety check: Validate it is actually this user's turn
     if (socket.id !== currentTurnPlayer.id) return;
 
@@ -155,7 +155,7 @@ io.on('connection', (socket) => {
 
     // Remove card from opponent's hand array
     const [stolenCard] = targetPlayer.hand.splice(cardIndex, 1);
-    
+
     // Add card to current player's hand array
     currentTurnPlayer.hand.push(stolenCard);
 
@@ -173,7 +173,7 @@ io.on('connection', (socket) => {
     }
     // Check Win/Loss states
     // A player is out of cards if their hand length hits 0
-    
+
     // Advance turn index to the next active player holding cards
     let attempts = 0;
     do {
@@ -189,24 +189,24 @@ io.on('connection', (socket) => {
     // 2. CHECK FOR GAME OVER CONDITION
     // ==========================================
     const activePlayersWithCards = room.players.filter(p => p.hand.length > 0);
-    
+
     if (activePlayersWithCards.length === 1) {
       room.gameState = 'game-over';
-      
+
       // Wait 1.5 seconds before showing the Game Over screen
       // so players can watch the final match happen!
       setTimeout(() => {
-          io.to(roomCode).emit('game-over', { 
-              loserName: activePlayersWithCards[0].name 
-          });
-      }, 1500); 
+        io.to(roomCode).emit('game-over', {
+          loserName: activePlayersWithCards[0].name
+        });
+      }, 1500);
     }
   });
 
   // 4. EVENT: Disconnect
   socket.on('disconnect', () => {
     console.log(`❌ User disconnected: ${socket.id}`);
-    
+
     // Simple cleanup: search rooms and remove player if game hasn't started
     for (const roomCode in rooms) {
       const room = rooms[roomCode];

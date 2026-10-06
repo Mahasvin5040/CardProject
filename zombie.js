@@ -32,7 +32,7 @@ function valueConverter(value) {
 // 1. CONSTANTS & SETUP
 // ==========================================
 const SUITS = ['♠', '♥', '♦', '♣'];
-const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const VALUES = [/*'2', '3', '4', '5', '6', '7', '8', '9',*/ '10', 'J', 'Q', 'K', 'A'];
 
 function getCardColor(suit) {
   if (suit === '♠' || suit === '♣') return 'black';
@@ -78,7 +78,7 @@ function shuffle(deck) {
   for (let i = deck.length - 1; i > 0; i--) {
     // Pick a random index from 0 to i
     const j = Math.floor(Math.random() * (i + 1));
-    
+
     // Swap elements deck[i] and deck[j]
     const temp = deck[i];
     deck[i] = deck[j];
@@ -118,7 +118,7 @@ function discardPairs(hand) {
     const color = getCardColor(card.suit);
     const key = `${card.value}_${color}`;
     const totalCount = counts[key];
-    
+
     if (totalCount % 2 === 0) {
       // Even count (e.g., 2 cards or 4 cards of "K_black") means they pair off perfectly. Drop them.
       return false;
@@ -126,7 +126,7 @@ function discardPairs(hand) {
       // Odd count (e.g., 1 or 3 cards) means one card must remain.
       // Keep the first one we find, drop the rest.
       counts[key]--;
-      return counts[key] === 0; 
+      return counts[key] === 0;
     }
   });
 }
@@ -191,7 +191,7 @@ function playTurn(playerDrawing, playerBeingDrawnFrom) {
 
   // 1. Pick a random card index from the neighbor's hand
   const randomIndex = Math.floor(Math.random() * playerBeingDrawnFrom.hand.length);
-  
+
   // 2. Remove (splice) that card from the neighbor's hand
   const [stolenCard] = playerBeingDrawnFrom.hand.splice(randomIndex, 1);
   console.log(`${playerDrawing.name} drew a card face-down (It was secretly the ${stolenCard.value}${stolenCard.suit})`);
@@ -202,7 +202,7 @@ function playTurn(playerDrawing, playerBeingDrawnFrom) {
   // 4. Run pair discarding on the drawing player's hand
   const cardsBeforeFilter = playerDrawing.hand.length;
   playerDrawing.hand = discardPairs(playerDrawing.hand);
-  
+
   if (playerDrawing.hand.length < cardsBeforeFilter) {
     console.log(`Match! ${playerDrawing.name} formed a pair and discarded it.`);
   } else {

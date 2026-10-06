@@ -206,16 +206,22 @@ socket.on('game-state-update', ({ players, currentTurnId }) => {
         let cardsHTML = '';
         for (let c = 0; c < player.cardCount; c++) {
             if (amIActiveTurn && isTargetNeighbor) {
-                cardsHTML += `<button class="opponent-card-btn active-target" onclick="sendDrawRequest('${player.id}', ${c})"></button>`;
+                cardsHTML += `
+                    <div class="opponent-card-wrapper clickable" onclick="sendDrawRequest('${player.id}', ${c})">
+                        <div class="opponent-card-visual active-target"></div>
+                    </div>`;
             } else {
-                cardsHTML += `<span class="opponent-card-btn" style="cursor: default;"></span>`;
+                cardsHTML += `
+                    <div class="opponent-card-wrapper">
+                        <div class="opponent-card-visual"></div>
+                    </div>`;
             }
         }
 
         const tableSlotContent = `
-            <div style="background: ${isTheirTurn ? 'rgba(56, 189, 248, 0.2)' : 'transparent'}; padding: 10px; border-radius: 8px;">
+            <div class="player-slot-content" style="background: ${isTheirTurn ? 'rgba(56, 189, 248, 0.2)' : 'transparent'};">
                 <strong>${player.name}</strong> ${isTheirTurn ? '⚡' : ''} ${isTargetNeighbor && amIActiveTurn ? '👈' : ''}<br>
-                <div class="side-hand-container" style="display:flex; gap: 4px; justify-content: center;">
+                <div class="side-hand-container">
                     ${cardsHTML || '<em>Safe!</em>'}
                 </div>
             </div>
@@ -241,7 +247,7 @@ socket.on('game-state-update', ({ players, currentTurnId }) => {
 
             // Fail-safe: Render miniature clickable cards ONLY if we are forced to draw from this hidden player
             if (amIActiveTurn && isTargetNeighbor && player.cardCount > 0) {
-                 hiddenHTML += `<div style="display:flex; gap: 2px; justify-content: flex-end; margin-bottom: 12px; flex-wrap: wrap;">${cardsHTML}</div>`;
+                 hiddenHTML += `<div class="side-hand-container hidden-hand-container">${cardsHTML}</div>`;
             }
 
             document.getElementById('hiddenPlayersList').innerHTML += hiddenHTML;

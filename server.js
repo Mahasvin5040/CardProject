@@ -47,10 +47,17 @@ function broadcastGameState(roomCode) {
     cardCount: p.hand.length
   }));
 
+  // added code: include isGameOver and loserName in state update
+  const isOver = room.gameState === 'game-over';
+  const activePlayers = room.players.filter(p => p.hand.length > 0);
+  const loserName = (isOver && activePlayers.length > 0) ? activePlayers[0].name : null;
+
   io.to(roomCode).emit('game-state-update', {
     players: publicPlayers,
-    currentTurnId: room.players[room.currentTurnIndex].id,
-    lastPair: room.lastPair || null
+    currentTurnId: isOver ? null : room.players[room.currentTurnIndex].id,
+    lastPair: room.lastPair || null,
+    isGameOver: isOver,
+    loserName: loserName
   });
 }
 
@@ -196,18 +203,23 @@ io.on('connection', (socket) => {
       attempts++;
     } while (room.players[room.currentTurnIndex].hand.length === 0 && attempts < room.players.length);
 
+    // added code: pass formedPair in animation events
+    const formedPairPayload = (matchIndex !== -1 ? room.lastPair : null);
+
     // Emit animation triggers to all players
     io.to(currentTurnPlayer.id).emit('animate-draw-card', {
       drawerId: currentTurnPlayer.id,
       targetPlayerId,
       cardIndex,
-      stolenCard
+      stolenCard,
+      formedPair: formedPairPayload
     });
 
     io.to(targetPlayer.id).emit('animate-card-stolen', {
       drawerId: currentTurnPlayer.id,
       targetPlayerId,
-      cardIndex
+      cardIndex,
+      formedPair: formedPairPayload
     });
 
     room.players.forEach(p => {
@@ -215,30 +227,30 @@ io.on('connection', (socket) => {
         io.to(p.id).emit('animate-spectator-draw', {
           drawerId: currentTurnPlayer.id,
           targetPlayerId,
-          cardIndex
+          cardIndex,
+          formedPair: formedPairPayload
         });
       }
     });
 
-    // Check if Game Over (Only 1 player left holding the Joker)
-    sendPrivateHands(roomCode);
-    broadcastGameState(roomCode);
-
-    // ==========================================
-    // 2. CHECK FOR GAME OVER CONDITION
-    // ==========================================
+    // added code: evaluate game over condition before broadcasting state
     const activePlayersWithCards = room.players.filter(p => p.hand.length > 0);
 
-    if (activePlayersWithCards.length === 1) {
+    if (activePlayersWithCards.length <= 1) {
       room.gameState = 'game-over';
+      const loserName = activePlayersWithCards[0] ? activePlayersWithCards[0].name : 'Unknown';
 
-      // Wait 1.5 seconds before showing the Game Over screen
-      // so players can watch the final match happen!
+      sendPrivateHands(roomCode);
+      broadcastGameState(roomCode);
+
       setTimeout(() => {
         io.to(roomCode).emit('game-over', {
-          loserName: activePlayersWithCards[0].name
+          loserName
         });
       }, 1500);
+    } else {
+      sendPrivateHands(roomCode);
+      broadcastGameState(roomCode);
     }
   });
 

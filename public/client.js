@@ -81,7 +81,9 @@ function triggerStartGame() {
 
 // --- NEW GAME NETWORKING LISTENERS ---
 
+// added code: reset game over flag when game starts
 socket.on('game-started', () => {
+    isGameOver = false;
     // Hide lobby layout, display the table
     document.getElementById('lobbyScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display = 'block';
@@ -131,6 +133,8 @@ let isAnimating = false;
 let pendingHand = null;
 let pendingGameState = null;
 let amIActiveTurn = false;
+// added code: track game over state on client
+let isGameOver = false;
 
 // Trigger ripple/riffle shuffle animation on player cards
 function triggerHandShuffle(container = document.getElementById('myHandArea')) {
@@ -288,9 +292,17 @@ function renderMyHand(hand) {
 }
 
 // Render table slots and opponent hands
-function renderGameState({ players, currentTurnId, lastPair }) {
+function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverGameOver, loserName: serverLoserName }) {
     const turnIndicator = document.getElementById('turnIndicator');
-    amIActiveTurn = (socket.id === currentTurnId);
+
+    // added code: handle game over state check
+    const activeRemaining = players.filter(p => p.cardCount > 0);
+    if (serverGameOver || isGameOver || activeRemaining.length <= 1) {
+        isGameOver = true;
+        amIActiveTurn = false;
+    } else {
+        amIActiveTurn = (socket.id === currentTurnId);
+    }
 
     // 1. Clear all table slots and the overflow list
     document.getElementById('slot-top').innerHTML = '';
@@ -308,10 +320,14 @@ function renderGameState({ players, currentTurnId, lastPair }) {
         targetIndex = (targetIndex + 1) % N;
     }
     const nextNeighbor = players[targetIndex];
+    const isValidTarget = (!isGameOver && nextNeighbor.id !== socket.id && nextNeighbor.cardCount > 0);
 
     // Update Turn Banner Text
-    if (amIActiveTurn) {
-        if (nextNeighbor.cardCount > 0) {
+    if (isGameOver) {
+        const loser = serverLoserName || (activeRemaining.length === 1 ? activeRemaining[0].name : 'Unknown');
+        turnIndicator.innerHTML = `🚨 <strong>GAME OVER!</strong> ${loser} is left holding the Joker! 🤡`;
+    } else if (amIActiveTurn) {
+        if (isValidTarget) {
             turnIndicator.textContent = `🟢 Your Turn! Pick a card from ${nextNeighbor.name}`;
         } else {
             turnIndicator.textContent = "🟢 Your Turn! But no one else has cards left...";
@@ -338,12 +354,12 @@ function renderGameState({ players, currentTurnId, lastPair }) {
     players.forEach(player => {
         if (player.id === socket.id) return;
 
-        const isTheirTurn = player.id === currentTurnId;
-        const isTargetNeighbor = player.id === nextNeighbor.id;
+        const isTheirTurn = !isGameOver && (player.id === currentTurnId);
+        const isTargetNeighbor = !isGameOver && isValidTarget && (player.id === nextNeighbor.id);
 
         let cardsHTML = '';
         for (let c = 0; c < player.cardCount; c++) {
-            if (amIActiveTurn && isTargetNeighbor) {
+            if (!isGameOver && amIActiveTurn && isTargetNeighbor) {
                 cardsHTML += `
                     <div class="opponent-card-wrapper clickable" data-card-index="${c}" onclick="sendDrawRequest('${player.id}', ${c})">
                         <div class="opponent-card-visual active-target"></div>
@@ -421,8 +437,201 @@ function renderGameState({ players, currentTurnId, lastPair }) {
 // CARD ANIMATION ORCHESTRATION
 // ==========================================
 
+// added code: floating card proxy helper and pair animations to table center
+function createFloatingCardProxy(rect, frontImagePath, isFlipped = false, initialTransform = '0deg') {
+    const proxy = document.createElement('div');
+    proxy.className = 'anim-card-proxy';
+    proxy.style.left = `${rect.left}px`;
+    proxy.style.top = `${rect.top}px`;
+    proxy.style.width = `${rect.width}px`;
+    proxy.style.height = `${rect.height}px`;
+    if (initialTransform) {
+        proxy.style.transform = initialTransform.startsWith('rotate') ? initialTransform : `rotate(${initialTransform})`;
+    }
+
+    const inner = document.createElement('div');
+    inner.className = isFlipped ? 'anim-card-inner flipped' : 'anim-card-inner';
+
+    const back = document.createElement('div');
+    back.className = 'anim-card-face anim-card-back';
+
+    const front = document.createElement('div');
+    front.className = 'anim-card-face anim-card-front';
+    if (frontImagePath) {
+        front.style.backgroundImage = frontImagePath.startsWith('url') ? frontImagePath : `url('${frontImagePath}')`;
+    }
+
+    inner.appendChild(back);
+    inner.appendChild(front);
+    proxy.appendChild(inner);
+    document.body.appendChild(proxy);
+
+    return proxy;
+}
+
+// added code: compute center pile target rect, falling back to table center when discardPile is hidden
+function getCenterPileTargetRect() {
+    const discardPile = document.getElementById('discardPile');
+    if (discardPile && discardPile.style.display !== 'none' && discardPile.offsetWidth > 0) {
+        const cRect = discardPile.getBoundingClientRect();
+        const top = cRect.top + (cRect.height / 2) - 51;
+        const left1 = cRect.left + (cRect.width / 2) - 49;
+        const left2 = left1 + 28; // 60% overlap of 70px card width (70 - 42 = 28)
+        return { top, left1, left2, width: 70, height: 102 };
+    }
+    const centerEl = document.querySelector('.table-center') || document.querySelector('.table-container') || document.body;
+    const cRect = centerEl.getBoundingClientRect();
+    const top = cRect.top + (cRect.height / 2) - 51;
+    const left1 = cRect.left + (cRect.width / 2) - 49;
+    const left2 = left1 + 28; // 60% overlap of 70px card width (70 - 42 = 28)
+    return { top, left1, left2, width: 70, height: 102 };
+}
+
+// Animate own player's pair: rise up from hand, come together with 60% overlap, and move to center
+function animatePlayerPairToCenter(formedPair, onComplete) {
+    if (!formedPair || formedPair.length < 2) {
+        if (onComplete) onComplete();
+        return;
+    }
+
+    // Locate matching card in hand
+    const matchEl = document.querySelector(`#myHandArea .my-card-wrapper[data-card-key="${getCardKey(formedPair[0])}"]`);
+    const handArea = document.getElementById('myHandArea');
+    const hRect = handArea ? handArea.getBoundingClientRect() : { left: window.innerWidth / 2 - 60, top: window.innerHeight - 200 };
+
+    let r1;
+    if (matchEl) {
+        r1 = matchEl.getBoundingClientRect();
+        matchEl.style.opacity = '0';
+    } else {
+        r1 = { left: hRect.left + (hRect.width / 2) - 80, top: hRect.top, width: 120, height: 174 };
+    }
+    const r2 = { left: r1.left + 50, top: r1.top, width: 120, height: 174 };
+
+    // Spawn both cards face-up (no rotations needed for player's own cards)
+    const proxy1 = createFloatingCardProxy(r1, getCardImagePath(formedPair[0]), true, '0deg');
+    const proxy2 = createFloatingCardProxy(r2, getCardImagePath(formedPair[1]), true, '0deg');
+    proxy2.style.zIndex = '10001';
+
+    // Step 1: Rise up from hand
+    requestAnimationFrame(() => {
+        proxy1.style.top = `${r1.top - 60}px`;
+        proxy2.style.top = `${r2.top - 60}px`;
+    });
+
+    // Step 2: Come together with 60% overlap and glide to table center
+    setTimeout(() => {
+        const target = getCenterPileTargetRect();
+
+        proxy1.style.left = `${target.left1}px`;
+        proxy1.style.top = `${target.top}px`;
+        proxy1.style.width = `${target.width}px`;
+        proxy1.style.height = `${target.height}px`;
+
+        proxy2.style.left = `${target.left2}px`;
+        proxy2.style.top = `${target.top}px`;
+        proxy2.style.width = `${target.width}px`;
+        proxy2.style.height = `${target.height}px`;
+
+        setTimeout(() => {
+            proxy1.remove();
+            proxy2.remove();
+            if (onComplete) onComplete();
+        }, 650);
+    }, 320);
+}
+
+// Animate opponent's pair: rise up, flip over, rotate depending on seated side, come together, and move to center
+function animateOpponentPairToCenter(drawerId, formedPair, onComplete) {
+    if (!formedPair || formedPair.length < 2) {
+        if (onComplete) onComplete();
+        return;
+    }
+
+    const drawerSlot = document.querySelector(`[data-player-id="${drawerId}"]`) || document.getElementById('slot-top');
+    const sRect = drawerSlot ? drawerSlot.getBoundingClientRect() : {
+        left: window.innerWidth / 2 - 30,
+        top: 60,
+        width: 60,
+        height: 90
+    };
+
+    // Determine initial rotation & rise offsets based on seated quadrant
+    let initialRotate = '0deg';
+    let riseDx = 0;
+    let riseDy = 0;
+
+    if (drawerSlot && drawerSlot.closest('.position-left')) {
+        initialRotate = '90deg'; // Left opponent rotates 90deg counterclockwise to center
+        riseDx = 45;
+    } else if (drawerSlot && drawerSlot.closest('.position-right')) {
+        initialRotate = '-90deg'; // Right opponent rotates 90deg clockwise to center
+        riseDx = -45;
+    } else if (drawerSlot && drawerSlot.closest('.position-top')) {
+        initialRotate = '180deg'; // Top opponent rotates 180deg to center
+        riseDy = 45;
+    } else {
+        initialRotate = '0deg';
+        riseDy = 40;
+    }
+
+    const startR1 = {
+        left: sRect.left + (sRect.width / 2) - 35,
+        top: sRect.top + (sRect.height / 2) - 45,
+        width: 60,
+        height: 90
+    };
+    const startR2 = {
+        left: sRect.left + (sRect.width / 2) - 25,
+        top: sRect.top + (sRect.height / 2) - 45,
+        width: 60,
+        height: 90
+    };
+
+    // Spawn face-down initially
+    const proxy1 = createFloatingCardProxy(startR1, getCardImagePath(formedPair[0]), false, initialRotate);
+    const proxy2 = createFloatingCardProxy(startR2, getCardImagePath(formedPair[1]), false, initialRotate);
+    proxy2.style.zIndex = '10001';
+
+    // Step 1: Rise up and flip over
+    requestAnimationFrame(() => {
+        proxy1.style.left = `${startR1.left + riseDx}px`;
+        proxy1.style.top = `${startR1.top + riseDy}px`;
+        proxy2.style.left = `${startR2.left + riseDx}px`;
+        proxy2.style.top = `${startR2.top + riseDy}px`;
+
+        const inner1 = proxy1.querySelector('.anim-card-inner');
+        const inner2 = proxy2.querySelector('.anim-card-inner');
+        if (inner1) inner1.classList.add('flipped');
+        if (inner2) inner2.classList.add('flipped');
+    });
+
+    // Step 2: Come together, rotate toward 0deg as they move toward center
+    setTimeout(() => {
+        const target = getCenterPileTargetRect();
+
+        proxy1.style.left = `${target.left1}px`;
+        proxy1.style.top = `${target.top}px`;
+        proxy1.style.width = `${target.width}px`;
+        proxy1.style.height = `${target.height}px`;
+        proxy1.style.transform = 'rotate(0deg)';
+
+        proxy2.style.left = `${target.left2}px`;
+        proxy2.style.top = `${target.top}px`;
+        proxy2.style.width = `${target.width}px`;
+        proxy2.style.height = `${target.height}px`;
+        proxy2.style.transform = 'rotate(0deg)';
+
+        setTimeout(() => {
+            proxy1.remove();
+            proxy2.remove();
+            if (onComplete) onComplete();
+        }, 650);
+    }, 380);
+}
+
 // 1. You draw a card from an opponent: card lifts, flies, flips over 180deg to face-up into your hand
-function animateCardDraw(targetPlayerId, cardIndex, stolenCard) {
+function animateCardDraw(targetPlayerId, cardIndex, stolenCard, formedPair) {
     isAnimating = true;
 
     // Find the clicked source card element
@@ -452,28 +661,7 @@ function animateCardDraw(targetPlayerId, cardIndex, stolenCard) {
     const targetTop = handRect.top;
 
     // Create 3D card proxy
-    const proxy = document.createElement('div');
-    proxy.className = 'anim-card-proxy';
-    proxy.style.left = `${startRect.left}px`;
-    proxy.style.top = `${startRect.top}px`;
-    proxy.style.width = `${startRect.width}px`;
-    proxy.style.height = `${startRect.height}px`;
-    proxy.style.transform = `rotate(${initialRotate})`;
-
-    const inner = document.createElement('div');
-    inner.className = 'anim-card-inner';
-
-    const back = document.createElement('div');
-    back.className = 'anim-card-face anim-card-back';
-
-    const front = document.createElement('div');
-    front.className = 'anim-card-face anim-card-front';
-    front.style.backgroundImage = `url('${getCardImagePath(stolenCard)}')`;
-
-    inner.appendChild(back);
-    inner.appendChild(front);
-    proxy.appendChild(inner);
-    document.body.appendChild(proxy);
+    const proxy = createFloatingCardProxy(startRect, getCardImagePath(stolenCard), false, initialRotate);
 
     if (sourceCard) {
         sourceCard.style.opacity = '0';
@@ -486,16 +674,22 @@ function animateCardDraw(targetPlayerId, cardIndex, stolenCard) {
         proxy.style.width = '120px';
         proxy.style.height = '174px';
         proxy.style.transform = 'rotate(0deg)';
-        inner.classList.add('flipped');
+        const inner = proxy.querySelector('.anim-card-inner');
+        if (inner) inner.classList.add('flipped');
     });
 
     setTimeout(() => {
-        completeAnimation();
+        proxy.remove();
+        if (formedPair) {
+            animatePlayerPairToCenter(formedPair, () => completeAnimation());
+        } else {
+            completeAnimation();
+        }
     }, 650);
 }
 
 // 2. An opponent draws from you: card lifts from your hand, flips face-down, flies to opponent slot
-function animateCardStolen(drawerId, cardIndex) {
+function animateCardStolen(drawerId, cardIndex, formedPair) {
     isAnimating = true;
 
     const myWrappers = document.querySelectorAll('#myHandArea .my-card-wrapper');
@@ -521,33 +715,10 @@ function animateCardStolen(drawerId, cardIndex) {
     if (drawerSlot && drawerSlot.closest('.position-left')) targetRotate = '90deg';
     if (drawerSlot && drawerSlot.closest('.position-right')) targetRotate = '-90deg';
 
-    const proxy = document.createElement('div');
-    proxy.className = 'anim-card-proxy';
-    proxy.style.left = `${startRect.left}px`;
-    proxy.style.top = `${startRect.top}px`;
-    proxy.style.width = `${startRect.width}px`;
-    proxy.style.height = `${startRect.height}px`;
-
-    const inner = document.createElement('div');
-    inner.className = 'anim-card-inner flipped'; // starts flipped face-up
-
-    const back = document.createElement('div');
-    back.className = 'anim-card-face anim-card-back';
-
-    const front = document.createElement('div');
-    front.className = 'anim-card-face anim-card-front';
-
     const visual = sourceCard ? sourceCard.querySelector('.my-card-visual') : null;
-    if (visual && visual.style.backgroundImage) {
-        front.style.backgroundImage = visual.style.backgroundImage;
-    } else {
-        front.style.backgroundImage = `url('/assets/cards/BackBlue.png')`;
-    }
+    const cardImg = (visual && visual.style.backgroundImage) ? visual.style.backgroundImage : '/assets/cards/BackBlue.png';
 
-    inner.appendChild(back);
-    inner.appendChild(front);
-    proxy.appendChild(inner);
-    document.body.appendChild(proxy);
+    const proxy = createFloatingCardProxy(startRect, cardImg, true, '0deg');
 
     if (sourceCard) {
         sourceCard.style.opacity = '0';
@@ -559,16 +730,22 @@ function animateCardStolen(drawerId, cardIndex) {
         proxy.style.width = '60px';
         proxy.style.height = '90px';
         proxy.style.transform = `rotate(${targetRotate})`;
-        inner.classList.remove('flipped'); // flips to face-down
+        const inner = proxy.querySelector('.anim-card-inner');
+        if (inner) inner.classList.remove('flipped'); // flips to face-down
     });
 
     setTimeout(() => {
-        completeAnimation();
+        proxy.remove();
+        if (formedPair) {
+            animateOpponentPairToCenter(drawerId, formedPair, () => completeAnimation());
+        } else {
+            completeAnimation();
+        }
     }, 650);
 }
 
 // 3. Spectator draw animation: a face-down card glides from target player's slot to drawer's slot
-function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex) {
+function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex, formedPair) {
     isAnimating = true;
 
     const targetSlot = document.querySelector(`[data-player-id="${targetPlayerId}"]`);
@@ -588,20 +765,12 @@ function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex) {
     if (drawerSlot.closest('.position-left')) targetRotate = '90deg';
     if (drawerSlot.closest('.position-right')) targetRotate = '-90deg';
 
-    const proxy = document.createElement('div');
-    proxy.className = 'anim-card-proxy';
-    proxy.style.left = `${startRect.left}px`;
-    proxy.style.top = `${startRect.top}px`;
-    proxy.style.width = `${startRect.width || 60}px`;
-    proxy.style.height = `${startRect.height || 90}px`;
-
-    const inner = document.createElement('div');
-    inner.className = 'anim-card-inner';
-    const back = document.createElement('div');
-    back.className = 'anim-card-face anim-card-back';
-    inner.appendChild(back);
-    proxy.appendChild(inner);
-    document.body.appendChild(proxy);
+    const proxy = createFloatingCardProxy({
+        left: startRect.left,
+        top: startRect.top,
+        width: startRect.width || 60,
+        height: startRect.height || 90
+    }, null, false, '0deg');
 
     if (sourceCard && sourceCard !== targetSlot) {
         sourceCard.style.opacity = '0';
@@ -616,7 +785,12 @@ function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex) {
     });
 
     setTimeout(() => {
-        completeAnimation();
+        proxy.remove();
+        if (formedPair) {
+            animateOpponentPairToCenter(drawerId, formedPair, () => completeAnimation());
+        } else {
+            completeAnimation();
+        }
     }, 650);
 }
 
@@ -641,21 +815,21 @@ socket.on('game-state-update', (state) => {
 });
 
 // Card draw animation events from server
-socket.on('animate-draw-card', ({ targetPlayerId, cardIndex, stolenCard }) => {
-    animateCardDraw(targetPlayerId, cardIndex, stolenCard);
+socket.on('animate-draw-card', ({ targetPlayerId, cardIndex, stolenCard, formedPair }) => {
+    animateCardDraw(targetPlayerId, cardIndex, stolenCard, formedPair);
 });
 
-socket.on('animate-card-stolen', ({ drawerId, cardIndex }) => {
-    animateCardStolen(drawerId, cardIndex);
+socket.on('animate-card-stolen', ({ drawerId, cardIndex, formedPair }) => {
+    animateCardStolen(drawerId, cardIndex, formedPair);
 });
 
-socket.on('animate-spectator-draw', ({ drawerId, targetPlayerId, cardIndex }) => {
-    animateSpectatorDraw(drawerId, targetPlayerId, cardIndex);
+socket.on('animate-spectator-draw', ({ drawerId, targetPlayerId, cardIndex, formedPair }) => {
+    animateSpectatorDraw(drawerId, targetPlayerId, cardIndex, formedPair);
 });
 
 // Action: Emits the click event choice to the server referee
 function sendDrawRequest(targetPlayerId, cardIndex) {
-    if (!amIActiveTurn || isAnimating) return;
+    if (isGameOver || !amIActiveTurn || isAnimating) return;
     socket.emit('draw-card', {
         roomCode: currentRoomCode,
         targetPlayerId,
@@ -663,8 +837,9 @@ function sendDrawRequest(targetPlayerId, cardIndex) {
     });
 }
 
-// Listen for end-of-game trigger
+// added code: handle end of game trigger cleanly
 socket.on('game-over', ({ loserName }) => {
+    isGameOver = true;
+    amIActiveTurn = false;
     document.getElementById('turnIndicator').innerHTML = `🚨 <strong>GAME OVER!</strong> ${loserName} is left holding the Joker! 🤡`;
-    document.getElementById('opponentsArea').innerHTML = '';
 });

@@ -49,7 +49,8 @@ function broadcastGameState(roomCode) {
 
   io.to(roomCode).emit('game-state-update', {
     players: publicPlayers,
-    currentTurnId: room.players[room.currentTurnIndex].id
+    currentTurnId: room.players[room.currentTurnIndex].id,
+    lastPair: room.lastPair || null
   });
 }
 
@@ -67,7 +68,8 @@ io.on('connection', (socket) => {
     rooms[roomCode] = {
       players: [],
       gameState: 'lobby',
-      hostId: socket.id
+      hostId: socket.id,
+      lastPair: null
     };
 
     console.log(`✨ New room created: ${roomCode} by ${playerName}`);
@@ -116,6 +118,7 @@ io.on('connection', (socket) => {
     }
 
     room.gameState = 'playing';
+    room.lastPair = null;
 
     // A. Create and shuffle our custom Joker deck using the engine
     let deck = engine.createZombieDeck();
@@ -156,11 +159,23 @@ io.on('connection', (socket) => {
     // Remove card from opponent's hand array
     const [stolenCard] = targetPlayer.hand.splice(cardIndex, 1);
 
-    // Add card to current player's hand array
-    currentTurnPlayer.hand.push(stolenCard);
+    // added code: check if drawn card forms a matching pair by value and color
+    const stolenColor = engine.getCardColor(stolenCard.suit);
+    const matchIndex = currentTurnPlayer.hand.findIndex(c => {
+      if (c.value === 'z' || c.isZombie || stolenCard.value === 'z' || stolenCard.isZombie) {
+        return false;
+      }
+      return c.value === stolenCard.value && engine.getCardColor(c.suit) === stolenColor;
+    });
 
-    // Filter out any value/color matching pairs formed by this draw
-    currentTurnPlayer.hand = engine.discardPairs(currentTurnPlayer.hand);
+    if (matchIndex !== -1) {
+      // Pair formed! Drop matching card from hand and store pair for the center pile
+      const matchingCard = currentTurnPlayer.hand.splice(matchIndex, 1)[0];
+      room.lastPair = [matchingCard, stolenCard];
+    } else {
+      // No match formed, add stolen card to hand
+      currentTurnPlayer.hand.push(stolenCard);
+    }
 
     // ==========================================
     // NEW: SHUFFLE BOTH HANDS TO RANDOMIZE POSITIONS
@@ -180,6 +195,30 @@ io.on('connection', (socket) => {
       room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
       attempts++;
     } while (room.players[room.currentTurnIndex].hand.length === 0 && attempts < room.players.length);
+
+    // Emit animation triggers to all players
+    io.to(currentTurnPlayer.id).emit('animate-draw-card', {
+      drawerId: currentTurnPlayer.id,
+      targetPlayerId,
+      cardIndex,
+      stolenCard
+    });
+
+    io.to(targetPlayer.id).emit('animate-card-stolen', {
+      drawerId: currentTurnPlayer.id,
+      targetPlayerId,
+      cardIndex
+    });
+
+    room.players.forEach(p => {
+      if (p.id !== currentTurnPlayer.id && p.id !== targetPlayer.id) {
+        io.to(p.id).emit('animate-spectator-draw', {
+          drawerId: currentTurnPlayer.id,
+          targetPlayerId,
+          cardIndex
+        });
+      }
+    });
 
     // Check if Game Over (Only 1 player left holding the Joker)
     sendPrivateHands(roomCode);

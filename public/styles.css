@@ -43,14 +43,49 @@ body {
     text-align: center;
     z-index: 2;
 }
+/* added code: center pair discard pile styles */
 #discardPile {
-    font-size: 50px;
-    background: white;
-    border-radius: 8px;
-    padding: 10px;
-    display: inline-block;
-    color: black;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.center-pair-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.center-pair-card {
+    width: 70px;
+    height: 102px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+}
+
+.center-pair-card.card-first {
+    z-index: 1;
+}
+
+.center-pair-card.card-second {
+    z-index: 2;
+    margin-left: -42px; /* 60% overlap of 70px width (42px / 70px = 60%) */
+    box-shadow: -4px 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+#actionText {
+    color: #a1a1aa;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 /* Base style for slots */
@@ -314,4 +349,132 @@ body {
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+/* ==========================================
+   CARD ANIMATION SYSTEM
+   ========================================== */
+
+/* 3D Floating Proxy Card */
+.anim-card-proxy {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    perspective: 1200px;
+    box-sizing: border-box;
+    transition: left 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+                top 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+                width 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+                height 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+                transform 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+                opacity 0.2s ease;
+}
+
+.anim-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.65s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.anim-card-inner.flipped {
+    transform: rotateY(180deg);
+}
+
+.anim-card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+}
+
+.anim-card-back {
+    background-image: url('/assets/cards/BackBlue.png');
+    transform: rotateY(0deg);
+}
+
+.anim-card-front {
+    transform: rotateY(180deg);
+}
+
+/* ==========================================
+   SHUFFLE RIFFLE ANIMATIONS
+   ========================================== */
+
+.my-card-wrapper {
+    transition: flex 0.3s ease;
+}
+
+/* Player card wave animation commented out to test pure sliding motion
+@keyframes riffle-wave-even {
+    0% { transform: translateY(0) translateX(0) rotate(0deg); }
+    30% { transform: translateY(-24px) translateX(-10px) rotate(-8deg); }
+    60% { transform: translateY(-10px) translateX(-4px) rotate(4deg); }
+    85% { transform: translateY(-3px) translateX(2px) rotate(-1deg); }
+    100% { transform: translateY(0) translateX(0) rotate(0deg); }
+}
+
+@keyframes riffle-wave-odd {
+    0% { transform: translateY(0) translateX(0) rotate(0deg); }
+    30% { transform: translateY(-24px) translateX(10px) rotate(8deg); }
+    60% { transform: translateY(-10px) translateX(4px) rotate(-4deg); }
+    85% { transform: translateY(-3px) translateX(-2px) rotate(1deg); }
+    100% { transform: translateY(0) translateX(0) rotate(0deg); }
+}
+
+.my-card-visual.riffle-even {
+    animation: riffle-wave-even 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.my-card-visual.riffle-odd {
+    animation: riffle-wave-odd 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+*/
+
+/* Opponent Hand Shuffle Animations */
+@keyframes opponent-riffle-top-even {
+    0% { transform: translateY(0) rotate(0deg); }
+    40% { transform: translateY(14px) translateX(-5px) rotate(-6deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes opponent-riffle-top-odd {
+    0% { transform: translateY(0) rotate(0deg); }
+    40% { transform: translateY(14px) translateX(5px) rotate(6deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+}
+
+.position-top .opponent-card-visual.riffle-even {
+    animation: opponent-riffle-top-even 0.5s ease-in-out forwards;
+}
+.position-top .opponent-card-visual.riffle-odd {
+    animation: opponent-riffle-top-odd 0.5s ease-in-out forwards;
+}
+
+@keyframes opponent-riffle-left {
+    0% { transform: translateX(0) rotate(90deg); }
+    40% { transform: translateX(12px) translateY(-5px) rotate(96deg); }
+    100% { transform: translateX(0) rotate(90deg); }
+}
+.position-left .opponent-card-visual.riffle {
+    animation: opponent-riffle-left 0.5s ease-in-out forwards;
+}
+
+@keyframes opponent-riffle-right {
+    0% { transform: translateX(0) rotate(-90deg); }
+    40% { transform: translateX(-12px) translateY(-5px) rotate(-96deg); }
+    100% { transform: translateX(0) rotate(-90deg); }
+}
+.position-right .opponent-card-visual.riffle {
+    animation: opponent-riffle-right 0.5s ease-in-out forwards;
 }

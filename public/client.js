@@ -13,7 +13,7 @@ function showLobby(roomCode) {
 function createRoom() {
     const name = document.getElementById('playerName').value.trim();
     if (!name) return alert("Please enter a name first!");
-    
+
     socket.emit('create-room', { playerName: name });
     // The host should see the "Start Game" button
     document.getElementById('startGameBtn').style.display = 'inline-block';
@@ -64,7 +64,7 @@ socket.on('error-message', (msg) => {
 socket.on('room-update', (players) => {
     const list = document.getElementById('playerList');
     list.innerHTML = ''; // Clear previous elements
-    
+
     players.forEach(p => {
         const li = document.createElement('li');
         li.textContent = p.name;
@@ -292,7 +292,7 @@ function renderMyHand(hand) {
 }
 
 // Render table slots and opponent hands
-function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverGameOver, loserName: serverLoserName }) {
+function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPairsMade, cardsRemaining: serverCardsRemaining, totalDeckCards, isGameOver: serverGameOver, loserName: serverLoserName }) {
     const turnIndicator = document.getElementById('turnIndicator');
 
     // added code: handle game over state check
@@ -414,14 +414,16 @@ function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverG
         } else if (player.id === rightId) {
             document.getElementById('slot-right').innerHTML = tableSlotContent;
         } else {
-            // added code: render hidden players list without cards or draw text
+            // added code: render hidden players list with hoverable card count / safe status on left of name
             const hiddenStatusColor = isTheirTurn ? '#38bdf8' : '#ffffff';
             const hiddenFontWeight = isTheirTurn ? 'bold' : 'normal';
-            const safeLabel = player.cardCount === 0 ? ' (Safe!)' : '';
+            const statusDetail = player.cardCount === 0
+                ? '(Safe!)'
+                : `${player.cardCount} ${player.cardCount === 1 ? 'card' : 'cards'} remaining`;
 
             let hiddenHTML = `
                 <div class="hidden-player-entry" data-player-id="${player.id}" style="color: ${hiddenStatusColor}; font-weight: ${hiddenFontWeight}; margin-bottom: 8px; font-size: 16px;">
-                    ${player.name} ${isTheirTurn ? '⚡' : ''}${safeLabel}
+                    <span class="hidden-player-details">${statusDetail}</span>${player.name} ${isTheirTurn ? '⚡' : ''}
                 </div>
             `;
             document.getElementById('hiddenPlayersList').innerHTML += hiddenHTML;
@@ -431,6 +433,22 @@ function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverG
     // added code (lines 391 - 415): render center discard pile showing last made pair
     const discardPile = document.getElementById('discardPile');
     const actionText = document.getElementById('actionText');
+    const centerStatsTooltip = document.getElementById('centerStatsTooltip');
+
+    // added code: update center stats tooltip with pairs made and cards remaining
+    if (centerStatsTooltip) {
+        const cardsRemaining = (typeof serverCardsRemaining === 'number')
+            ? serverCardsRemaining
+            : players.reduce((sum, p) => sum + p.cardCount, 0);
+        const totalCards = (typeof totalDeckCards === 'number') ? totalDeckCards : 53;
+        const pairsCount = (typeof serverPairsMade === 'number')
+            ? serverPairsMade
+            : Math.floor((totalCards - cardsRemaining) / 2);
+
+        const pairWord = pairsCount === 1 ? 'pair' : 'pairs';
+        const cardWord = cardsRemaining === 1 ? 'card' : 'cards';
+        centerStatsTooltip.textContent = `${pairsCount} ${pairWord} made, ${cardsRemaining} ${cardWord} remaining in play`;
+    }
 
     if (discardPile) {
         if (lastPair && Array.isArray(lastPair) && lastPair.length === 2) {
@@ -741,7 +759,7 @@ function animateCardStolen(drawerId, cardIndex, formedPair) {
     if (drawerSlot && drawerSlot.closest('.position-right')) targetRotate = '-90deg';
 
     const visual = sourceCard ? sourceCard.querySelector('.my-card-visual') : null;
-    const cardImg = (visual && visual.style.backgroundImage) ? visual.style.backgroundImage : '/assets/cards/BackBlue.png';
+    const cardImg = (visual && visual.style.backgroundImage) ? visual.style.backgroundImage : '/assets/cards/BackBlueBig.png';
 
     const proxy = createFloatingCardProxy(startRect, cardImg, true, '0deg');
 

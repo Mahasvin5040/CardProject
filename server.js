@@ -47,15 +47,22 @@ function broadcastGameState(roomCode) {
     cardCount: p.hand.length
   }));
 
-  // added code: include isGameOver and loserName in state update
+  // added code: include isGameOver, loserName, pairsMade, and cardsRemaining in state update
   const isOver = room.gameState === 'game-over';
   const activePlayers = room.players.filter(p => p.hand.length > 0);
   const loserName = (isOver && activePlayers.length > 0) ? activePlayers[0].name : null;
+
+  const totalDeck = room.totalDeckCards || 53;
+  const cardsInPlay = room.players.reduce((sum, p) => sum + p.hand.length, 0);
+  const pairsMade = Math.floor((totalDeck - cardsInPlay) / 2);
 
   io.to(roomCode).emit('game-state-update', {
     players: publicPlayers,
     currentTurnId: isOver ? null : room.players[room.currentTurnIndex].id,
     lastPair: room.lastPair || null,
+    pairsMade: pairsMade,
+    cardsRemaining: cardsInPlay,
+    totalDeckCards: totalDeck,
     isGameOver: isOver,
     loserName: loserName
   });
@@ -129,6 +136,7 @@ io.on('connection', (socket) => {
 
     // A. Create and shuffle our custom Joker deck using the engine
     let deck = engine.createZombieDeck();
+    room.totalDeckCards = deck.length;
     engine.shuffle(deck);
 
     // B. Deal cards directly into our room's player objects

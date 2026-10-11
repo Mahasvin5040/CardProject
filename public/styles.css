@@ -1,6 +1,7 @@
 body {
     display: flex;
-    background-color: #213e84; /* Nice dark purple/blue background from your images */
+    background-color: #213e84;
+    /* Nice dark purple/blue background from your images */
     color: white;
     font-family: sans-serif;
     margin: 0;
@@ -17,7 +18,7 @@ body {
 .game-header {
     text-align: center;
     padding: 10px;
-    background: rgba(0,0,0,0.2);
+    background: rgba(0, 0, 0, 0.2);
 }
 
 /* The actual play mat layout */
@@ -30,7 +31,7 @@ body {
     margin: 20px auto;
     background-color: #2e304e;
     border-radius: 40px;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
     overflow: hidden;
 }
 
@@ -42,7 +43,35 @@ body {
     transform: translate(-50%, -50%);
     text-align: center;
     z-index: 2;
+    cursor: default;
 }
+
+/* added code: center stats tooltip shown above the pair on hover */
+.center-stats-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 12px;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 15;
+}
+
+.table-center:hover .center-stats-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+}
+
 /* added code: center pair discard pile styles */
 #discardPile {
     display: none;
@@ -77,7 +106,8 @@ body {
 
 .center-pair-card.card-second {
     z-index: 2;
-    margin-left: -42px; /* 60% overlap of 70px width (42px / 70px = 60%) */
+    margin-left: -42px;
+    /* 60% overlap of 70px width (42px / 70px = 60%) */
     box-shadow: -4px 4px 12px rgba(0, 0, 0, 0.6);
 }
 
@@ -160,7 +190,7 @@ body {
     bottom: 15px;
     left: 50%;
     transform: translateX(-50%);
-    width: 66.66%; 
+    width: 66.66%;
 }
 
 /* The container for your hand needs to support absolute positioning
@@ -177,14 +207,16 @@ body {
     justify-content: center;
     width: 95%;
     margin: 0 auto;
-    height: 174px; 
+    height: 174px;
 }
 
 /* New specific class for YOUR larger 1.5x cards */
 .my-card {
-    position: absolute; 
-    width: 90px;   /* 1.5x of 60px */
-    height: 135px; /* 1.5x of 90px */
+    position: absolute;
+    width: 90px;
+    /* 1.5x of 60px */
+    height: 135px;
+    /* 1.5x of 90px */
     border-radius: 6px;
     background-size: cover;
     background-position: center;
@@ -192,7 +224,7 @@ body {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     /* Add a shadow on the left edge to define the overlap cleanly */
-    box-shadow: -3px 0 8px rgba(0,0,0,0.5); 
+    box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     cursor: pointer;
 }
@@ -200,9 +232,10 @@ body {
 /* Hover effect pulls the card up and forces it to the very front */
 .my-card:hover {
     transform: translateY(-20px) scale(1.05);
-    z-index: 100 !important; 
-    box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+    z-index: 100 !important;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
 }
+
 /* 
   Card is 80px wide. 1/10 overlap = 9px. 
   90px - 9px = 81px. 
@@ -210,24 +243,24 @@ body {
 */
 .my-card-wrapper {
     position: relative;
-    flex: 0 1 108px; 
+    flex: 0 1 108px;
 }
 
 /* The very last card still gets its full 90px width so the right edge isn't clipped */
 .my-card-wrapper:last-child {
-    flex: 0 0 120px; 
+    flex: 0 0 120px;
 }
 
 .my-card-visual {
     position: absolute;
     top: 0;
     left: 0;
-    width: 120px; 
+    width: 120px;
     height: 174px;
     image-rendering: pixelated;
     background-size: cover;
     border-radius: 6px;
-    box-shadow: -3px 0 8px rgba(0, 0, 0, 0.4); 
+    box-shadow: -3px 0 8px rgba(0, 0, 0, 0.4);
     transition: transform 0.15s ease;
 }
 
@@ -251,18 +284,21 @@ body {
     padding: 12px 8px;
     border-radius: 6px;
     font-size: 18px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 /* Opponent cards visual design - same layout structure as my cards */
 .opponent-card-wrapper {
     position: relative;
 }
+
 .position-top .opponent-card-wrapper,
 .hidden-hand-container .opponent-card-wrapper {
-    flex: 0 1 54px; /* 60px width - 6px overlap */
+    flex: 0 1 54px;
+    /* 60px width - 6px overlap */
     height: 90px;
 }
+
 .position-top .opponent-card-wrapper:last-child,
 .hidden-hand-container .opponent-card-wrapper:last-child {
     flex: 0 0 60px;
@@ -270,9 +306,11 @@ body {
 
 .position-left .opponent-card-wrapper,
 .position-right .opponent-card-wrapper {
-    flex: 0 1 54px; /* Rotated visual is 60px high - 6px overlap = 54px */
+    flex: 0 1 54px;
+    /* Rotated visual is 60px high - 6px overlap = 54px */
     width: 90px;
 }
+
 .position-left .opponent-card-wrapper:last-child,
 .position-right .opponent-card-wrapper:last-child {
     flex: 0 0 60px;
@@ -289,7 +327,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-image: url('/assets/cards/BackBlue.png');
+    background-image: url('/assets/cards/BackBlueBig.png');
     border-radius: 4px;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.4);
     transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
@@ -299,9 +337,11 @@ body {
 .position-left .opponent-card-visual {
     transform: rotate(90deg);
     transform-origin: center center;
-    top: 0; /* Adjusting so it stays in the 90x90 bounding box nicely */
+    top: 0;
+    /* Adjusting so it stays in the 90x90 bounding box nicely */
     left: 15px;
 }
+
 .position-right .opponent-card-visual {
     transform: rotate(-90deg);
     transform-origin: center center;
@@ -312,26 +352,32 @@ body {
 /* Hover Effects */
 .position-top .opponent-card-wrapper.clickable:hover .opponent-card-visual,
 .hidden-hand-container .opponent-card-wrapper.clickable:hover .opponent-card-visual {
-    transform: translateY(10px); /* Move down */
+    transform: translateY(10px);
+    /* Move down */
     z-index: 50;
 }
+
 .position-left .opponent-card-wrapper.clickable:hover .opponent-card-visual {
-    transform: translateX(10px) rotate(90deg); /* Move right */
+    transform: translateX(10px) rotate(90deg);
+    /* Move right */
     z-index: 50;
 }
+
 .position-right .opponent-card-wrapper.clickable:hover .opponent-card-visual {
-    transform: translateX(-10px) rotate(-90deg); /* Move left */
+    transform: translateX(-10px) rotate(-90deg);
+    /* Move left */
     z-index: 50;
 }
 
 .opponent-card-wrapper.clickable {
     cursor: pointer;
 }
+
 .opponent-card-visual.active-target {
     filter: drop-shadow(0 0 6px #38bdf8);
 }
 
-/* added code: top-left players status panel styles */
+/* added code: top-left players status panel styles with hover expansion */
 .all-players-ui {
     position: absolute;
     top: 20px;
@@ -341,17 +387,38 @@ body {
     padding: 10px 15px;
     border-radius: 8px;
     z-index: 10;
+    cursor: default;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.all-players-ui:hover {
+    background: rgba(0, 0, 0, 0.65);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .all-players-ui h4 {
-    margin: 0 0 10px 0;
+    margin: 0;
     color: #a1a1aa;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
+    transition: color 0.2s ease;
 }
 
-/* Styling for players not seated at the main table */
+.all-players-ui:hover h4 {
+    margin-bottom: 10px;
+    color: #ffffff;
+}
+
+#allPlayersList {
+    display: none;
+}
+
+.all-players-ui:hover #allPlayersList {
+    display: block;
+}
+
+/* added code: styling for off-screen players with hover details extending to the left */
 .hidden-players-ui {
     position: absolute;
     top: 20px;
@@ -361,6 +428,13 @@ body {
     padding: 10px 15px;
     border-radius: 8px;
     z-index: 10;
+    white-space: nowrap;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hidden-players-ui:hover {
+    background: rgba(0, 0, 0, 0.65);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .hidden-players-ui h4 {
@@ -369,6 +443,18 @@ body {
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.hidden-player-details {
+    display: none;
+    font-size: 14px;
+    margin-right: 6px;
+    opacity: 0.85;
+    font-weight: normal;
+}
+
+.hidden-players-ui:hover .hidden-player-details {
+    display: inline;
 }
 
 /* ==========================================
@@ -383,11 +469,11 @@ body {
     perspective: 1200px;
     box-sizing: border-box;
     transition: left 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
-                top 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
-                width 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
-                height 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
-                transform 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
-                opacity 0.2s ease;
+        top 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+        width 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+        height 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+        transform 0.65s cubic-bezier(0.2, 0.9, 0.3, 1),
+        opacity 0.2s ease;
 }
 
 .anim-card-inner {
@@ -420,7 +506,7 @@ body {
 }
 
 .anim-card-back {
-    background-image: url('/assets/cards/BackBlue.png');
+    background-image: url('/assets/cards/BackBlueBig.png');
     transform: rotateY(0deg);
 }
 
@@ -464,37 +550,73 @@ body {
 
 /* Opponent Hand Shuffle Animations */
 @keyframes opponent-riffle-top-even {
-    0% { transform: translateY(0) rotate(0deg); }
-    40% { transform: translateY(14px) translateX(-5px) rotate(-6deg); }
-    100% { transform: translateY(0) rotate(0deg); }
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    40% {
+        transform: translateY(14px) translateX(-5px) rotate(-6deg);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
 }
+
 @keyframes opponent-riffle-top-odd {
-    0% { transform: translateY(0) rotate(0deg); }
-    40% { transform: translateY(14px) translateX(5px) rotate(6deg); }
-    100% { transform: translateY(0) rotate(0deg); }
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    40% {
+        transform: translateY(14px) translateX(5px) rotate(6deg);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
 }
 
 .position-top .opponent-card-visual.riffle-even {
     animation: opponent-riffle-top-even 0.5s ease-in-out forwards;
 }
+
 .position-top .opponent-card-visual.riffle-odd {
     animation: opponent-riffle-top-odd 0.5s ease-in-out forwards;
 }
 
 @keyframes opponent-riffle-left {
-    0% { transform: translateX(0) rotate(90deg); }
-    40% { transform: translateX(12px) translateY(-5px) rotate(96deg); }
-    100% { transform: translateX(0) rotate(90deg); }
+    0% {
+        transform: translateX(0) rotate(90deg);
+    }
+
+    40% {
+        transform: translateX(12px) translateY(-5px) rotate(96deg);
+    }
+
+    100% {
+        transform: translateX(0) rotate(90deg);
+    }
 }
+
 .position-left .opponent-card-visual.riffle {
     animation: opponent-riffle-left 0.5s ease-in-out forwards;
 }
 
 @keyframes opponent-riffle-right {
-    0% { transform: translateX(0) rotate(-90deg); }
-    40% { transform: translateX(-12px) translateY(-5px) rotate(-96deg); }
-    100% { transform: translateX(0) rotate(-90deg); }
+    0% {
+        transform: translateX(0) rotate(-90deg);
+    }
+
+    40% {
+        transform: translateX(-12px) translateY(-5px) rotate(-96deg);
+    }
+
+    100% {
+        transform: translateX(0) rotate(-90deg);
+    }
 }
+
 .position-right .opponent-card-visual.riffle {
     animation: opponent-riffle-right 0.5s ease-in-out forwards;
 }

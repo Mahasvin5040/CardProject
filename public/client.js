@@ -310,6 +310,24 @@ function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverG
     document.getElementById('slot-right').innerHTML = '';
     document.getElementById('hiddenPlayersList').innerHTML = '';
 
+    // added code: render top-left Players status panel in consistent room order
+    const allPlayersList = document.getElementById('allPlayersList');
+    if (allPlayersList) {
+        allPlayersList.innerHTML = players.map(player => {
+            const isTheirTurn = !isGameOver && (player.id === currentTurnId);
+            const statusColor = isTheirTurn ? '#38bdf8' : '#ffffff';
+            const fontWeight = isTheirTurn ? 'bold' : 'normal';
+            const safeLabel = player.cardCount === 0 ? ' (Safe!)' : '';
+            const youLabel = player.id === socket.id ? ' (You)' : '';
+
+            return `
+                <div class="player-status-entry" style="color: ${statusColor}; font-weight: ${fontWeight}; margin-bottom: 8px; font-size: 16px;">
+                    ${player.name}${youLabel} ${isTheirTurn ? '⚡' : ''}${safeLabel}
+                </div>
+            `;
+        }).join('');
+    }
+
     const N = players.length;
     const myIndex = players.findIndex(p => p.id === socket.id);
     if (myIndex === -1) return;
@@ -337,17 +355,25 @@ function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverG
         turnIndicator.textContent = `⏳ ${currentActive ? currentActive.name : 'Someone'} is picking...`;
     }
 
-    // 3. Map out table slots
+    // added code: dynamically map active opponents so the draw target is always on the left
     let leftId = null, topId = null, rightId = null;
     if (N === 2) {
         topId = players[(myIndex + 1) % N].id;
-    } else if (N === 3) {
-        leftId = players[(myIndex + 1) % N].id;
-        rightId = players[(myIndex + 2) % N].id;
-    } else if (N >= 4) {
-        leftId = players[(myIndex + 1) % N].id;
-        topId = players[(myIndex + 2) % N].id;
+    } else if (N >= 3) {
         rightId = players[(myIndex - 1 + N) % N].id;
+
+        const intermediatePlayers = [];
+        for (let i = 1; i < N - 1; i++) {
+            intermediatePlayers.push(players[(myIndex + i) % N]);
+        }
+
+        const activeIntermediate = intermediatePlayers.filter(p => p.cardCount > 0);
+        if (activeIntermediate.length >= 1) {
+            leftId = activeIntermediate[0].id;
+        }
+        if (activeIntermediate.length >= 2) {
+            topId = activeIntermediate[1].id;
+        }
     }
 
     // 4. Render opponents
@@ -388,17 +414,16 @@ function renderGameState({ players, currentTurnId, lastPair, isGameOver: serverG
         } else if (player.id === rightId) {
             document.getElementById('slot-right').innerHTML = tableSlotContent;
         } else {
+            // added code: render hidden players list without cards or draw text
             const hiddenStatusColor = isTheirTurn ? '#38bdf8' : '#ffffff';
             const hiddenFontWeight = isTheirTurn ? 'bold' : 'normal';
+            const safeLabel = player.cardCount === 0 ? ' (Safe!)' : '';
 
             let hiddenHTML = `
                 <div class="hidden-player-entry" data-player-id="${player.id}" style="color: ${hiddenStatusColor}; font-weight: ${hiddenFontWeight}; margin-bottom: 8px; font-size: 16px;">
-                    ${player.name} ${isTheirTurn ? '⚡' : ''} ${isTargetNeighbor && amIActiveTurn ? '👈 (Draw here!)' : ''}
+                    ${player.name} ${isTheirTurn ? '⚡' : ''}${safeLabel}
                 </div>
             `;
-            if (amIActiveTurn && isTargetNeighbor && player.cardCount > 0) {
-                 hiddenHTML += `<div class="side-hand-container hidden-hand-container">${cardsHTML}</div>`;
-            }
             document.getElementById('hiddenPlayersList').innerHTML += hiddenHTML;
         }
     });

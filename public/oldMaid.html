@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Real-Time Old Maid</title>
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body,
+        button,
+        h3 {
+            font-family: 'Silkscreen', monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gameScreen" style="width: 100%;">
+        <div class="game-header">
+            <h3 id="turnIndicator"></h3>
+        </div>
+
+        <!-- added code: top-left players status panel -->
+        <div id="allPlayersArea" class="all-players-ui">
+            <h4>Players</h4>
+            <div id="allPlayersList"></div>
+        </div>
+
+        <div id="hiddenPlayersArea" class="hidden-players-ui">
+            <h4>Off-Screen Players</h4>
+            <div id="hiddenPlayersList"></div>
+        </div>
+
+        <div class="table-container">
+
+            <div class="table-center">
+                <!-- added code: center stats tooltip -->
+                <div id="centerStatsTooltip" class="center-stats-tooltip"></div>
+                <div id="discardPile"></div>
+                <div id="actionText">Game Started</div>
+            </div>
+
+            <div id="slot-top" class="player-slot position-top"></div>
+            <div id="slot-left" class="player-slot position-left"></div>
+            <div id="slot-right" class="player-slot position-right"></div>
+
+            <div id="slot-bottom" class="player-slot position-bottom">
+                <div class="player-info"><strong>You</strong></div>
+                <div id="myHandArea" class="cards-hand"></div>
+            </div>
+
+        <!-- added code: Back to Lobby button displayed when game is over -->
+        <button id="backToLobbyBtn" class="back-to-lobby-btn" style="display: none;" onclick="returnToLobby()">Back to Lobby</button>
+
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+
+</html>

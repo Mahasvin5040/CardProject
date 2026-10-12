@@ -28,8 +28,10 @@ function generateRoomCode() {
 
 function sendPrivateHands(roomCode) {
   const room = rooms[roomCode];
+  if (!room) return;
   room.players.forEach(player => {
-    io.to(player.id).emit('your-hand', player.hand);
+    const targetSocketId = player.socketId || player.id;
+    io.to(targetSocketId).emit('your-hand', player.hand);
   });
 }
 
@@ -76,29 +78,33 @@ io.on('connection', (socket) => {
   console.log(`👤 User connected: ${socket.id}`);
 
   // 1. EVENT: Create Room
-  socket.on('create-room', ({ playerName }) => {
+  socket.on('create-room', ({ playerName, playerId }) => {
     const roomCode = generateRoomCode();
+    const pid = playerId || socket.id;
 
     rooms[roomCode] = {
       players: [],
       gameState: 'lobby',
-      hostId: socket.id,
-      lastPair: null
+      hostId: pid,
+      lastPair: null,
+      totalDeckCards: 53
     };
 
-    console.log(`✨ New room created: ${roomCode} by ${playerName}`);
+    console.log(`✨ New room created: ${roomCode} by ${playerName} (${pid})`);
 
     socket.join(roomCode);
-    rooms[roomCode].players.push({ id: socket.id, name: playerName, hand: [] });
+    // added code: initialize player with inLobby true
+    rooms[roomCode].players.push({ id: pid, socketId: socket.id, name: playerName, hand: [], inLobby: true });
 
-    socket.emit('room-created', { roomCode });
-    io.to(roomCode).emit('room-update', rooms[roomCode].players);
+    socket.emit('room-created', { roomCode, playerId: pid });
+    io.to(roomCode).emit('room-update', rooms[roomCode].players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
   });
 
   // 2. EVENT: Join Room
-  socket.on('join-room', ({ roomCode, playerName }) => {
+  socket.on('join-room', ({ roomCode, playerName, playerId }) => {
     if (!roomCode) return;
     roomCode = roomCode.toUpperCase().trim();
+    const pid = playerId || socket.id;
 
     if (!rooms[roomCode]) {
       socket.emit('error-message', 'Room not found! Check your code.');
@@ -111,23 +117,112 @@ io.on('connection', (socket) => {
     }
 
     socket.join(roomCode);
-    rooms[roomCode].players.push({ id: socket.id, name: playerName, hand: [] });
+    const existing = rooms[roomCode].players.find(p => p.id === pid);
+    if (existing) {
+      existing.socketId = socket.id;
+      existing.name = playerName;
+      existing.inLobby = true;
+      if (existing.disconnectTimeout) {
+        clearTimeout(existing.disconnectTimeout);
+        existing.disconnectTimeout = null;
+      }
+    } else {
+      // added code: initialize player with inLobby true
+      rooms[roomCode].players.push({ id: pid, socketId: socket.id, name: playerName, hand: [], inLobby: true });
+    }
 
-    console.log(`🚪 ${playerName} joined room: ${roomCode}`);
+    console.log(`🚪 ${playerName} joined room: ${roomCode} (${pid})`);
 
-    socket.emit('join-success', { roomCode });
-    io.to(roomCode).emit('room-update', rooms[roomCode].players);
+    socket.emit('join-success', { roomCode, playerId: pid });
+    io.to(roomCode).emit('room-update', rooms[roomCode].players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
+  });
+
+  // EVENT: Sync Lobby (multi-page transition to lobby.html)
+  socket.on('sync-lobby', ({ roomCode, playerId }) => {
+    if (!roomCode) return;
+    roomCode = roomCode.toUpperCase().trim();
+    const room = rooms[roomCode];
+    if (!room) {
+      socket.emit('error-message', 'Room not found!');
+      return;
+    }
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) {
+      socket.emit('error-message', 'Player not found in room!');
+      return;
+    }
+
+    if (player.disconnectTimeout) {
+      clearTimeout(player.disconnectTimeout);
+      player.disconnectTimeout = null;
+    }
+    player.socketId = socket.id;
+    // added code: mark player in lobby and clear hand
+    player.inLobby = true;
+    player.hand = [];
+    socket.join(roomCode);
+
+    // added code: reset room state to lobby if returning after game-over
+    if (room.gameState === 'game-over') {
+      room.gameState = 'lobby';
+    }
+
+    const isHost = (room.hostId === playerId);
+    socket.emit('lobby-synced', {
+      roomCode,
+      isHost,
+      players: room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby }))
+    });
+    io.to(roomCode).emit('room-update', room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
+  });
+
+  // added code: handle player intentionally leaving the room
+  socket.on('leave-room', ({ roomCode, playerId }) => {
+    if (!roomCode) return;
+    roomCode = roomCode.toUpperCase().trim();
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    const pid = playerId || socket.id;
+    const pIndex = room.players.findIndex(p => p.id === pid || p.socketId === socket.id);
+    if (pIndex !== -1) {
+      const leavingPlayer = room.players[pIndex];
+      if (leavingPlayer.disconnectTimeout) {
+        clearTimeout(leavingPlayer.disconnectTimeout);
+        leavingPlayer.disconnectTimeout = null;
+      }
+      room.players.splice(pIndex, 1);
+      console.log(`👋 ${leavingPlayer.name} left room ${roomCode}`);
+
+      if (room.players.length === 0) {
+        delete rooms[roomCode];
+        console.log(`🧹 Deleted empty room: ${roomCode}`);
+      } else {
+        if (room.hostId === pid) {
+          room.hostId = room.players[0].id;
+        }
+        io.to(roomCode).emit('room-update', room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
+      }
+    }
   });
 
   // 3. EVENT: Start Game (Triggered by Host)
-  socket.on('start-game', ({ roomCode }) => {
+  socket.on('start-game', ({ roomCode, playerId }) => {
     const room = rooms[roomCode];
 
     // Safety checks
     if (!room) return;
-    if (socket.id !== room.hostId) return; // Only host can start
+    const callerId = playerId || socket.id;
+    if (callerId !== room.hostId && !room.players.find(p => p.id === room.hostId && p.socketId === socket.id)) return;
     if (room.players.length < 2) {
       socket.emit('error-message', 'You need at least 2 players to start!');
+      return;
+    }
+
+    // added code: ensure all players are connected and in lobby before starting
+    if (room.players.some(p => !p.socketId || p.inLobby === false)) {
+      socket.emit('error-message', 'Waiting for all players to be present in the lobby!');
       return;
     }
 
@@ -145,10 +240,17 @@ io.on('connection', (socket) => {
     // C. Force all players to strip out initial value/color matching pairs
     room.players.forEach(player => {
       player.hand = engine.discardPairs(player.hand);
+      // added code: player leaves lobby state once game begins
+      player.inLobby = false;
     });
 
     // D. Pick a random player to start the game
     room.currentTurnIndex = Math.floor(Math.random() * room.players.length);
+    let attempts = 0;
+    while (room.players[room.currentTurnIndex].hand.length === 0 && attempts < room.players.length) {
+      room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
+      attempts++;
+    }
 
     // Tell everyone in the room that the game has officially started
     io.to(roomCode).emit('game-started');
@@ -158,15 +260,46 @@ io.on('connection', (socket) => {
     broadcastGameState(roomCode);
   });
 
+  // EVENT: Sync Game (multi-page transition to oldMaid.html)
+  socket.on('sync-game', ({ roomCode, playerId }) => {
+    if (!roomCode) return;
+    roomCode = roomCode.toUpperCase().trim();
+    const room = rooms[roomCode];
+    if (!room) {
+      socket.emit('error-message', 'Room not found!');
+      return;
+    }
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) {
+      socket.emit('error-message', 'Player not found in room!');
+      return;
+    }
+
+    if (player.disconnectTimeout) {
+      clearTimeout(player.disconnectTimeout);
+      player.disconnectTimeout = null;
+    }
+    player.socketId = socket.id;
+    // added code: player is actively in game
+    player.inLobby = false;
+    socket.join(roomCode);
+
+    // Send private cards to this player and sync game state
+    socket.emit('your-hand', player.hand);
+    broadcastGameState(roomCode);
+  });
+
   // 5. EVENT: Pull Card from Neighbor
-  socket.on('draw-card', ({ roomCode, targetPlayerId, cardIndex }) => {
+  socket.on('draw-card', ({ roomCode, targetPlayerId, cardIndex, playerId }) => {
     const room = rooms[roomCode];
     if (!room || room.gameState !== 'playing') return;
 
     const currentTurnPlayer = room.players[room.currentTurnIndex];
 
     // Safety check: Validate it is actually this user's turn
-    if (socket.id !== currentTurnPlayer.id) return;
+    const callerId = playerId || socket.id;
+    if (callerId !== currentTurnPlayer.id && socket.id !== currentTurnPlayer.socketId && socket.id !== currentTurnPlayer.id) return;
 
     const targetPlayer = room.players.find(p => p.id === targetPlayerId);
     if (!targetPlayer || targetPlayer.hand.length === 0) return;
@@ -193,7 +326,7 @@ io.on('connection', (socket) => {
     }
 
     // ==========================================
-    // NEW: SHUFFLE BOTH HANDS TO RANDOMIZE POSITIONS
+    // SHUFFLE BOTH HANDS TO RANDOMIZE POSITIONS
     // ==========================================
     if (currentTurnPlayer.hand.length > 0) {
       engine.shuffle(currentTurnPlayer.hand);
@@ -201,8 +334,6 @@ io.on('connection', (socket) => {
     if (targetPlayer.hand.length > 0) {
       engine.shuffle(targetPlayer.hand);
     }
-    // Check Win/Loss states
-    // A player is out of cards if their hand length hits 0
 
     // Advance turn index to the next active player holding cards
     let attempts = 0;
@@ -214,8 +345,11 @@ io.on('connection', (socket) => {
     // added code: pass formedPair in animation events
     const formedPairPayload = (matchIndex !== -1 ? room.lastPair : null);
 
+    const drawerSocketId = currentTurnPlayer.socketId || currentTurnPlayer.id;
+    const targetSocketId = targetPlayer.socketId || targetPlayer.id;
+
     // Emit animation triggers to all players
-    io.to(currentTurnPlayer.id).emit('animate-draw-card', {
+    io.to(drawerSocketId).emit('animate-draw-card', {
       drawerId: currentTurnPlayer.id,
       targetPlayerId,
       cardIndex,
@@ -223,7 +357,7 @@ io.on('connection', (socket) => {
       formedPair: formedPairPayload
     });
 
-    io.to(targetPlayer.id).emit('animate-card-stolen', {
+    io.to(targetSocketId).emit('animate-card-stolen', {
       drawerId: currentTurnPlayer.id,
       targetPlayerId,
       cardIndex,
@@ -232,7 +366,8 @@ io.on('connection', (socket) => {
 
     room.players.forEach(p => {
       if (p.id !== currentTurnPlayer.id && p.id !== targetPlayer.id) {
-        io.to(p.id).emit('animate-spectator-draw', {
+        const specSocketId = p.socketId || p.id;
+        io.to(specSocketId).emit('animate-spectator-draw', {
           drawerId: currentTurnPlayer.id,
           targetPlayerId,
           cardIndex,
@@ -247,6 +382,11 @@ io.on('connection', (socket) => {
     if (activePlayersWithCards.length <= 1) {
       room.gameState = 'game-over';
       const loserName = activePlayersWithCards[0] ? activePlayersWithCards[0].name : 'Unknown';
+
+      // added code: reset inLobby flag so returning to lobby is accurately tracked
+      room.players.forEach(p => {
+        p.inLobby = false;
+      });
 
       sendPrivateHands(roomCode);
       broadcastGameState(roomCode);
@@ -266,22 +406,38 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`❌ User disconnected: ${socket.id}`);
 
-    // Simple cleanup: search rooms and remove player if game hasn't started
+    // Grace period before removing player to allow smooth page transitions
     for (const roomCode in rooms) {
       const room = rooms[roomCode];
-      const pIndex = room.players.findIndex(p => p.id === socket.id);
-      if (pIndex !== -1) {
-        room.players.splice(pIndex, 1);
-        if (room.players.length === 0) {
-          delete rooms[roomCode]; // Delete empty rooms
-          console.log(`🧹 Deleted empty room: ${roomCode}`);
-        } else {
-          // If the host left before starting, assign a new host
-          if (room.hostId === socket.id) {
-            room.hostId = room.players[0].id;
-          }
-          io.to(roomCode).emit('room-update', room.players);
+      const player = room.players.find(p => (p.socketId === socket.id || p.id === socket.id));
+      if (player) {
+        player.socketId = null;
+
+        // added code: if disconnected in lobby, immediately mark as not ready and notify room
+        if (room.gameState === 'lobby') {
+          player.inLobby = false;
+          io.to(roomCode).emit('room-update', room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
         }
+
+        const gracePeriod = (room.gameState === 'lobby') ? 2500 : 10000;
+        player.disconnectTimeout = setTimeout(() => {
+          const pIndex = room.players.findIndex(p => p.id === player.id);
+          if (pIndex !== -1 && !player.socketId) {
+            // added code: remove player if disconnected during lobby or after game-over
+            if (room.gameState === 'lobby' || room.gameState === 'game-over') {
+              room.players.splice(pIndex, 1);
+              if (room.players.length === 0) {
+                delete rooms[roomCode];
+                console.log(`🧹 Deleted empty room: ${roomCode}`);
+              } else {
+                if (room.hostId === player.id) {
+                  room.hostId = room.players[0].id;
+                }
+                io.to(roomCode).emit('room-update', room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
+              }
+            }
+          }
+        }, gracePeriod);
       }
     }
   });

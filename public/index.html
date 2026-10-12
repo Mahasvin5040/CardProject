@@ -3,73 +3,38 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Zombie Multiplayer Test</title>
+    <title>Real-Time Old Maid</title>
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
         body,
         button,
+        input,
+        h1,
+        h2,
         h3 {
             font-family: 'Silkscreen', monospace;
         }
     </style>
 </head>
 
-<body>
+<body class="landing-page-body">
     <div id="landingScreen">
-        <h1>🃏 Real-Time Zombie</h1>
-        <input type="text" id="playerName" placeholder="Enter your name" /><br><br>
+        <h1 class="landing-title">Real-Time Old Maid</h1>
+        <div class="landing-subtitle">🃏 Don't Get Caught With The Joker! 🃏</div>
 
-        <button onclick="createRoom()">Create New Game</button>
-        <hr style="width: 50%; margin: 20px auto;">
-        <input type="text" id="roomCodeInput" placeholder="4-Letter Room Code" />
-        <button onclick="joinRoom()">Join Game</button>
-    </div>
+        <input type="text" id="playerName" class="landing-input" placeholder="ENTER YOUR NAME" maxlength="15" autocomplete="off" />
 
-    <div id="lobbyScreen" style="display: none;">
-        <h2>Room Code: <span id="displayRoomCode" style="color: #007bff;">----</span></h2>
-        <h3>Players in Lobby:</h3>
-        <ul id="playerList"></ul>
-        <button id="startGameBtn" style="display: none;" onclick="triggerStartGame()">Start Game</button>
-    </div>
-    <div id="gameScreen" style="display: none;">
-        <div class="game-header">
-            <h3 id="turnIndicator"></h3>
-        </div>
-        <!-- added code: top-left players status panel -->
-        <div id="allPlayersArea" class="all-players-ui">
-            <h4>Players</h4>
-            <div id="allPlayersList"></div>
-        </div>
+        <button class="landing-btn-primary" onclick="createRoom()">Create New Game</button>
 
-        <div id="hiddenPlayersArea" class="hidden-players-ui">
-            <h4>Off-Screen Players</h4>
-            <div id="hiddenPlayersList"></div>
-        </div>
+        <div class="landing-divider"><span>OR</span></div>
 
-        <div class="table-container">
-
-            <div class="table-center">
-                <!-- added code: center stats tooltip -->
-                <div id="centerStatsTooltip" class="center-stats-tooltip"></div>
-                <div id="discardPile"></div>
-                <div id="actionText">Game Started</div>
-            </div>
-
-            <div id="slot-top" class="player-slot position-top"></div>
-            <div id="slot-left" class="player-slot position-left"></div>
-            <div id="slot-right" class="player-slot position-right"></div>
-
-            <div id="slot-bottom" class="player-slot position-bottom">
-                <div class="player-info"><strong>You</strong></div>
-                <div id="myHandArea" class="cards-hand"></div>
-            </div>
-
-        </div>
+        <input type="text" id="roomCodeInput" class="landing-input" placeholder="4-LETTER ROOM CODE" maxlength="4" style="text-transform: uppercase;" autocomplete="off" />
+        <button class="landing-btn-secondary" onclick="joinRoom()">Join Game</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="client.js"></script>
+    <script src="landing.js"></script>
 </body>
 
 </html>

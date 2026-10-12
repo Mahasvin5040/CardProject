@@ -1,32 +1,25 @@
+// added code: multi-page game screen initialization and session restore
 const socket = io();
-let currentRoomCode = null;
+const myPlayerId = sessionStorage.getItem('om_playerId');
+let currentRoomCode = sessionStorage.getItem('om_roomCode');
 
-// UI View Switcher Helper
-function showLobby(roomCode) {
-    currentRoomCode = roomCode;
-    document.getElementById('landingScreen').style.display = 'none';
-    document.getElementById('lobbyScreen').style.display = 'block';
-    document.getElementById('displayRoomCode').textContent = roomCode;
+// added code: redirect to landing if opened without active session
+if (!currentRoomCode || !myPlayerId) {
+    window.location.href = '/index.html';
 }
 
-// Action: Create Room
-function createRoom() {
-    const name = document.getElementById('playerName').value.trim();
-    if (!name) return alert("Please enter a name first!");
-
-    socket.emit('create-room', { playerName: name });
-    // The host should see the "Start Game" button
-    document.getElementById('startGameBtn').style.display = 'inline-block';
+// added code: get reliable player ID across page reloads
+function getMyId() {
+    return myPlayerId || socket.id;
 }
 
-// Action: Join Room
-function joinRoom() {
-    const name = document.getElementById('playerName').value.trim();
-    const code = document.getElementById('roomCodeInput').value.trim();
-    if (!name || !code) return alert("Please enter both your name and a room code!");
-
-    socket.emit('join-room', { roomCode: code, playerName: name });
-}
+// added code: request game sync upon connection
+socket.emit('sync-game', { roomCode: currentRoomCode, playerId: myPlayerId });
+socket.on('connect', () => {
+    if (currentRoomCode && myPlayerId) {
+        socket.emit('sync-game', { roomCode: currentRoomCode, playerId: myPlayerId });
+    }
+});
 
 function getCardImagePath(card) {
     if (card.value === 'z' || card.isZombie) {
@@ -49,44 +42,17 @@ function getCardImagePath(card) {
 
 // --- SERVER EVENT LISTENERS ---
 
-socket.on('room-created', ({ roomCode }) => {
-    showLobby(roomCode);
-});
-
-socket.on('join-success', ({ roomCode }) => {
-    showLobby(roomCode);
-});
-
+// added code: handle server error messages and redirect if needed
 socket.on('error-message', (msg) => {
     alert(msg);
+    window.location.href = '/index.html';
 });
-
-socket.on('room-update', (players) => {
-    const list = document.getElementById('playerList');
-    list.innerHTML = ''; // Clear previous elements
-
-    players.forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = p.name;
-        list.appendChild(li);
-    });
-});
-
-// Action: Triggered when host clicks "Start Game"
-function triggerStartGame() {
-    if (currentRoomCode) {
-        socket.emit('start-game', { roomCode: currentRoomCode });
-    }
-}
 
 // --- NEW GAME NETWORKING LISTENERS ---
 
 // added code: reset game over flag when game starts
 socket.on('game-started', () => {
     isGameOver = false;
-    // Hide lobby layout, display the table
-    document.getElementById('lobbyScreen').style.display = 'none';
-    document.getElementById('gameScreen').style.display = 'block';
 });
 
 // Receive your secret cards safely from the server referee
@@ -300,8 +266,12 @@ function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPa
     if (serverGameOver || isGameOver || activeRemaining.length <= 1) {
         isGameOver = true;
         amIActiveTurn = false;
+        const backBtn = document.getElementById('backToLobbyBtn');
+        if (backBtn) backBtn.style.display = 'block';
     } else {
-        amIActiveTurn = (socket.id === currentTurnId);
+        amIActiveTurn = (getMyId() === currentTurnId);
+        const backBtn = document.getElementById('backToLobbyBtn');
+        if (backBtn) backBtn.style.display = 'none';
     }
 
     // 1. Clear all table slots and the overflow list
@@ -318,7 +288,7 @@ function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPa
             const statusColor = isTheirTurn ? '#38bdf8' : '#ffffff';
             const fontWeight = isTheirTurn ? 'bold' : 'normal';
             const safeLabel = player.cardCount === 0 ? ' (Safe!)' : '';
-            const youLabel = player.id === socket.id ? ' (You)' : '';
+            const youLabel = player.id === getMyId() ? ' (You)' : '';
 
             return `
                 <div class="player-status-entry" style="color: ${statusColor}; font-weight: ${fontWeight}; margin-bottom: 8px; font-size: 16px;">
@@ -329,16 +299,16 @@ function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPa
     }
 
     const N = players.length;
-    const myIndex = players.findIndex(p => p.id === socket.id);
+    const myIndex = players.findIndex(p => p.id === getMyId());
     if (myIndex === -1) return;
 
     // 2. Find our target neighbor dynamically (skipping empty hands)
     let targetIndex = (myIndex + 1) % N;
-    while (players[targetIndex].id !== socket.id && players[targetIndex].cardCount === 0) {
+    while (players[targetIndex].id !== getMyId() && players[targetIndex].cardCount === 0) {
         targetIndex = (targetIndex + 1) % N;
     }
     const nextNeighbor = players[targetIndex];
-    const isValidTarget = (!isGameOver && nextNeighbor.id !== socket.id && nextNeighbor.cardCount > 0);
+    const isValidTarget = (!isGameOver && nextNeighbor.id !== getMyId() && nextNeighbor.cardCount > 0);
 
     // Update Turn Banner Text
     if (isGameOver) {
@@ -378,7 +348,7 @@ function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPa
 
     // 4. Render opponents
     players.forEach(player => {
-        if (player.id === socket.id) return;
+        if (player.id === getMyId()) return;
 
         const isTheirTurn = !isGameOver && (player.id === currentTurnId);
         const isTargetNeighbor = !isGameOver && isValidTarget && (player.id === nextNeighbor.id);
@@ -873,10 +843,12 @@ socket.on('animate-spectator-draw', ({ drawerId, targetPlayerId, cardIndex, form
 // Action: Emits the click event choice to the server referee
 function sendDrawRequest(targetPlayerId, cardIndex) {
     if (isGameOver || !amIActiveTurn || isAnimating) return;
+    // added code: send persistent playerId with draw-card request
     socket.emit('draw-card', {
         roomCode: currentRoomCode,
         targetPlayerId,
-        cardIndex
+        cardIndex,
+        playerId: getMyId()
     });
 }
 
@@ -885,4 +857,11 @@ socket.on('game-over', ({ loserName }) => {
     isGameOver = true;
     amIActiveTurn = false;
     document.getElementById('turnIndicator').innerHTML = `🚨 <strong>GAME OVER!</strong> ${loserName} is left holding the Joker! 🤡`;
+    const backBtn = document.getElementById('backToLobbyBtn');
+    if (backBtn) backBtn.style.display = 'block';
 });
+
+// added code: navigate back to lobby
+function returnToLobby() {
+    window.location.href = '/lobby.html';
+}

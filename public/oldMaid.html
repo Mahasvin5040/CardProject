@@ -3,6 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- added code: mobile viewport meta tag -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Real-Time Old Maid</title>
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -22,19 +24,19 @@
         </div>
 
         <!-- added code: top-left players status panel -->
-        <div id="allPlayersArea" class="all-players-ui">
+        <div id="allPlayersArea" class="all-players-ui" role="button" aria-expanded="false" tabindex="0">
             <h4>Players</h4>
             <div id="allPlayersList"></div>
         </div>
 
-        <div id="hiddenPlayersArea" class="hidden-players-ui">
+        <div id="hiddenPlayersArea" class="hidden-players-ui" role="button" aria-expanded="false" tabindex="0">
             <h4>Off-Screen Players</h4>
             <div id="hiddenPlayersList"></div>
         </div>
 
         <div class="table-container">
 
-            <div class="table-center">
+            <div class="table-center" role="button" tabindex="0">
                 <!-- added code: center stats tooltip -->
                 <div id="centerStatsTooltip" class="center-stats-tooltip"></div>
                 <div id="discardPile"></div>
@@ -50,10 +52,10 @@
                 <div id="myHandArea" class="cards-hand"></div>
             </div>
 
+        </div>
+
         <!-- added code: Back to Lobby button displayed when game is over -->
         <button id="backToLobbyBtn" class="back-to-lobby-btn" style="display: none;" onclick="returnToLobby()">Back to Lobby</button>
-
-        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>

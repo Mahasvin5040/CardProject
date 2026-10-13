@@ -67,7 +67,8 @@ body {
     z-index: 15;
 }
 
-.table-center:hover .center-stats-tooltip {
+.table-center:hover .center-stats-tooltip,
+.table-center.tooltip-open .center-stats-tooltip {
     opacity: 1;
     transform: translateX(-50%) translateY(-4px);
 }
@@ -378,6 +379,7 @@ body {
 }
 
 /* added code: top-left players status panel styles with hover expansion */
+/* added code: top-left players status panel styles with hover and tap expansion */
 .all-players-ui {
     position: absolute;
     top: 20px;
@@ -387,12 +389,14 @@ body {
     padding: 10px 15px;
     border-radius: 8px;
     z-index: 10;
-    cursor: default;
+    cursor: pointer;
+    user-select: none;
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.all-players-ui:hover {
-    background: rgba(0, 0, 0, 0.65);
+.all-players-ui:hover,
+.all-players-ui.open {
+    background: rgba(0, 0, 0, 0.75);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
@@ -405,7 +409,8 @@ body {
     transition: color 0.2s ease;
 }
 
-.all-players-ui:hover h4 {
+.all-players-ui:hover h4,
+.all-players-ui.open h4 {
     margin-bottom: 10px;
     color: #ffffff;
 }
@@ -414,11 +419,12 @@ body {
     display: none;
 }
 
-.all-players-ui:hover #allPlayersList {
+.all-players-ui:hover #allPlayersList,
+.all-players-ui.open #allPlayersList {
     display: block;
 }
 
-/* added code: styling for off-screen players with hover details extending to the left */
+/* added code: styling for off-screen players with hover and tap details extending to the left */
 .hidden-players-ui {
     position: absolute;
     top: 20px;
@@ -429,11 +435,14 @@ body {
     border-radius: 8px;
     z-index: 10;
     white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.hidden-players-ui:hover {
-    background: rgba(0, 0, 0, 0.65);
+.hidden-players-ui:hover,
+.hidden-players-ui.open {
+    background: rgba(0, 0, 0, 0.75);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
@@ -451,6 +460,11 @@ body {
     margin-right: 6px;
     opacity: 0.85;
     font-weight: normal;
+}
+
+.hidden-players-ui:hover .hidden-player-details,
+.hidden-players-ui.open .hidden-player-details {
+    display: inline;
 }
 
 .hidden-players-ui:hover .hidden-player-details {
@@ -793,4 +807,400 @@ body {
 .landing-divider span {
     padding: 0 12px;
     letter-spacing: 2px;
+}
+
+/* added code: responsive lobby screen card styling */
+.lobby-card {
+    text-align: center;
+    background: #2e304e;
+    border: 3px solid rgba(56, 189, 248, 0.4);
+    border-radius: 32px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.5);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 480px;
+    box-sizing: border-box;
+    animation: landing-fade-in 0.5s ease-out;
+}
+
+.lobby-title {
+    font-size: 22px;
+    color: #ffffff;
+    margin: 0 0 14px 0;
+    letter-spacing: 1px;
+}
+
+.lobby-code-badge {
+    color: #38bdf8;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.lobby-subtitle {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.lobby-player-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.lobby-player-list li {
+    padding: 10px 14px;
+    margin: 6px 0;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+/* ==========================================
+   MOBILE & RESPONSIVE DESIGN SYSTEM
+   ========================================== */
+
+/* Tablet & Mobile Screens (<= 768px) */
+@media (max-width: 768px) {
+    body {
+        flex-direction: column;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Prevent mobile input auto-zoom */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Landing & Lobby cards fluid scaling */
+    #landingScreen,
+    .lobby-card {
+        padding: 28px 18px;
+        max-width: 92vw;
+        border-radius: 20px;
+    }
+
+    .landing-title {
+        font-size: 22px;
+    }
+
+    .landing-subtitle,
+    .lobby-subtitle {
+        font-size: 12px;
+        margin-bottom: 20px;
+    }
+
+    .landing-btn-primary,
+    .landing-btn-secondary {
+        padding: 13px;
+        font-size: 14px;
+        min-height: 48px;
+    }
+
+    /* Game Header compact bar */
+    .game-header {
+        padding: 6px 12px;
+    }
+
+    .game-header h3 {
+        font-size: 12px;
+        margin: 2px 0;
+        line-height: 1.3;
+    }
+
+    /* Table Container fills viewport gracefully */
+    .table-container {
+        width: 96vw;
+        max-width: 96vw;
+        height: calc(100vh - 100px);
+        max-height: calc(100vh - 100px);
+        margin: 6px auto;
+        border-radius: 20px;
+    }
+
+    /* Drawer status badges (top-left & top-right) */
+    .all-players-ui {
+        top: 8px;
+        left: 8px;
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 6px;
+        max-width: 46vw;
+        z-index: 25;
+    }
+
+    .hidden-players-ui {
+        top: 8px;
+        right: 8px;
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 6px;
+        max-width: 46vw;
+        z-index: 25;
+    }
+
+    .all-players-ui h4,
+    .hidden-players-ui h4 {
+        font-size: 10px;
+    }
+
+    /* Player hand scaled for mobile */
+    #myHandArea {
+        height: 116px;
+        width: 98%;
+    }
+
+    .my-card-visual {
+        width: 76px;
+        height: 110px;
+        border-radius: 4px;
+    }
+
+    .my-card-wrapper {
+        flex: 0 1 50px;
+    }
+
+    .my-card-wrapper:last-child {
+        flex: 0 0 76px;
+    }
+
+    .my-card-wrapper:hover .my-card-visual,
+    .my-card-wrapper:active .my-card-visual {
+        transform: translateY(-12px);
+    }
+
+    /* Opponent card scaling */
+    .opponent-card-visual {
+        width: 46px;
+        height: 69px;
+        border-radius: 3px;
+    }
+
+    .position-top .side-hand-container,
+    .hidden-hand-container {
+        height: 70px;
+    }
+
+    .position-top .opponent-card-wrapper,
+    .hidden-hand-container .opponent-card-wrapper {
+        flex: 0 1 38px;
+        height: 69px;
+    }
+
+    .position-top .opponent-card-wrapper:last-child,
+    .hidden-hand-container .opponent-card-wrapper:last-child {
+        flex: 0 0 46px;
+    }
+
+    .position-left .side-hand-container,
+    .position-right .side-hand-container {
+        width: 70px;
+    }
+
+    .position-left .opponent-card-wrapper,
+    .position-right .opponent-card-wrapper {
+        flex: 0 1 38px;
+        width: 70px;
+    }
+
+    .position-left .opponent-card-wrapper:last-child,
+    .position-right .opponent-card-wrapper:last-child {
+        flex: 0 0 46px;
+    }
+
+    .position-left .opponent-card-visual {
+        left: 12px;
+    }
+
+    .position-right .opponent-card-visual {
+        left: 12px;
+    }
+
+    /* Center discard pair scaling */
+    .center-pair-card {
+        width: 52px;
+        height: 76px;
+        border-radius: 4px;
+    }
+
+    .center-pair-card.card-second {
+        margin-left: -31px;
+    }
+
+    #actionText {
+        font-size: 11px;
+    }
+
+    .center-stats-tooltip {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+
+    /* Position slots layout adjustments for mobile */
+    .position-top {
+        top: 6px;
+        width: 85%;
+    }
+
+    .position-left {
+        left: 4px;
+        height: 50%;
+    }
+
+    .position-right {
+        right: 4px;
+        height: 50%;
+    }
+
+    .position-bottom {
+        bottom: 6px;
+        width: 95%;
+    }
+
+    .player-info {
+        font-size: 11px;
+        margin-bottom: 2px;
+    }
+
+    /* Safe-area action buttons */
+    .leave-party-btn,
+    .back-to-lobby-btn {
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        left: 10px;
+        padding: 9px 15px;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        z-index: 90;
+    }
+}
+
+/* Small / Compact Phones (<= 400px) */
+@media (max-width: 400px) {
+    .my-card-visual {
+        width: 66px;
+        height: 96px;
+    }
+
+    .my-card-wrapper {
+        flex: 0 1 40px;
+    }
+
+    .my-card-wrapper:last-child {
+        flex: 0 0 66px;
+    }
+
+    #myHandArea {
+        height: 102px;
+    }
+
+    .opponent-card-visual {
+        width: 40px;
+        height: 60px;
+    }
+
+    .position-top .opponent-card-wrapper,
+    .hidden-hand-container .opponent-card-wrapper {
+        flex: 0 1 30px;
+        height: 60px;
+    }
+
+    .position-top .opponent-card-wrapper:last-child,
+    .hidden-hand-container .opponent-card-wrapper:last-child {
+        flex: 0 0 40px;
+    }
+
+    .position-left .opponent-card-wrapper,
+    .position-right .opponent-card-wrapper {
+        flex: 0 1 30px;
+        width: 60px;
+    }
+
+    .position-left .opponent-card-wrapper:last-child,
+    .position-right .opponent-card-wrapper:last-child {
+        flex: 0 0 40px;
+    }
+
+    .center-pair-card {
+        width: 44px;
+        height: 64px;
+    }
+
+    .center-pair-card.card-second {
+        margin-left: -26px;
+    }
+}
+
+/* Mobile Landscape Mode */
+@media (max-height: 500px) and (orientation: landscape) {
+    .table-container {
+        height: calc(100vh - 44px);
+        max-height: calc(100vh - 44px);
+        margin: 2px auto;
+        border-radius: 16px;
+    }
+
+    .game-header {
+        padding: 3px 10px;
+    }
+
+    .game-header h3 {
+        font-size: 11px;
+        margin: 0;
+    }
+
+    #myHandArea {
+        height: 90px;
+    }
+
+    .my-card-visual {
+        width: 60px;
+        height: 87px;
+    }
+
+    .my-card-wrapper {
+        flex: 0 1 38px;
+    }
+
+    .my-card-wrapper:last-child {
+        flex: 0 0 60px;
+    }
+
+    .opponent-card-visual {
+        width: 38px;
+        height: 57px;
+    }
+
+    .position-top .opponent-card-wrapper,
+    .hidden-hand-container .opponent-card-wrapper {
+        flex: 0 1 28px;
+        height: 57px;
+    }
+
+    .position-top .opponent-card-wrapper:last-child,
+    .hidden-hand-container .opponent-card-wrapper:last-child {
+        flex: 0 0 38px;
+    }
+
+    .center-pair-card {
+        width: 42px;
+        height: 61px;
+    }
+
+    .center-pair-card.card-second {
+        margin-left: -25px;
+    }
+
+    .all-players-ui,
+    .hidden-players-ui {
+        top: 4px;
+        padding: 4px 8px;
+    }
 }

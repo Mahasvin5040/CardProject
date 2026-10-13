@@ -482,22 +482,47 @@ function createFloatingCardProxy(rect, frontImagePath, isFlipped = false, initia
     return proxy;
 }
 
+// added code: dynamic card size helpers for responsive mobile layouts
+function getMyCardSize() {
+    if (window.innerWidth <= 400) return { width: 66, height: 96 };
+    if (window.innerWidth <= 768) return { width: 76, height: 110 };
+    return { width: 120, height: 174 };
+}
+
+function getOpponentCardSize() {
+    if (window.innerWidth <= 400) return { width: 40, height: 60 };
+    if (window.innerWidth <= 768) return { width: 46, height: 69 };
+    return { width: 60, height: 90 };
+}
+
 // added code: compute center pile target rect, falling back to table center when discardPile is hidden
 function getCenterPileTargetRect() {
+    let cardW = 70;
+    let cardH = 102;
+    if (window.innerWidth <= 400) {
+        cardW = 44;
+        cardH = 64;
+    } else if (window.innerWidth <= 768) {
+        cardW = 52;
+        cardH = 76;
+    }
+    const overlapPx = cardW * 0.4;
+    const totalW = cardW + overlapPx;
+
     const discardPile = document.getElementById('discardPile');
     if (discardPile && discardPile.style.display !== 'none' && discardPile.offsetWidth > 0) {
         const cRect = discardPile.getBoundingClientRect();
-        const top = cRect.top + (cRect.height / 2) - 51;
-        const left1 = cRect.left + (cRect.width / 2) - 49;
-        const left2 = left1 + 28; // 60% overlap of 70px card width (70 - 42 = 28)
-        return { top, left1, left2, width: 70, height: 102 };
+        const top = cRect.top + (cRect.height / 2) - (cardH / 2);
+        const left1 = cRect.left + (cRect.width / 2) - (totalW / 2);
+        const left2 = left1 + overlapPx;
+        return { top, left1, left2, width: cardW, height: cardH };
     }
     const centerEl = document.querySelector('.table-center') || document.querySelector('.table-container') || document.body;
     const cRect = centerEl.getBoundingClientRect();
-    const top = cRect.top + (cRect.height / 2) - 51;
-    const left1 = cRect.left + (cRect.width / 2) - 49;
-    const left2 = left1 + 28; // 60% overlap of 70px card width (70 - 42 = 28)
-    return { top, left1, left2, width: 70, height: 102 };
+    const top = cRect.top + (cRect.height / 2) - (cardH / 2);
+    const left1 = cRect.left + (cRect.width / 2) - (totalW / 2);
+    const left2 = left1 + overlapPx;
+    return { top, left1, left2, width: cardW, height: cardH };
 }
 
 // Animate own player's pair: rise up from hand, come together with 60% overlap, and move to center
@@ -507,19 +532,20 @@ function animatePlayerPairToCenter(formedPair, onComplete) {
         return;
     }
 
+    const mySize = getMyCardSize();
     // Locate matching card in hand
     const matchEl = document.querySelector(`#myHandArea .my-card-wrapper[data-card-key="${getCardKey(formedPair[0])}"]`);
     const handArea = document.getElementById('myHandArea');
-    const hRect = handArea ? handArea.getBoundingClientRect() : { left: window.innerWidth / 2 - 60, top: window.innerHeight - 200 };
+    const hRect = handArea ? handArea.getBoundingClientRect() : { left: window.innerWidth / 2 - (mySize.width / 2), top: window.innerHeight - 180 };
 
     let r1;
     if (matchEl) {
         r1 = matchEl.getBoundingClientRect();
         matchEl.style.opacity = '0';
     } else {
-        r1 = { left: hRect.left + (hRect.width / 2) - 80, top: hRect.top, width: 120, height: 174 };
+        r1 = { left: hRect.left + (hRect.width / 2) - mySize.width, top: hRect.top, width: mySize.width, height: mySize.height };
     }
-    const r2 = { left: r1.left + 50, top: r1.top, width: 120, height: 174 };
+    const r2 = { left: r1.left + (mySize.width * 0.4), top: r1.top, width: mySize.width, height: mySize.height };
 
     // Spawn both cards face-up (no rotations needed for player's own cards)
     const proxy1 = createFloatingCardProxy(r1, getCardImagePath(formedPair[0]), true, '0deg');
@@ -528,8 +554,8 @@ function animatePlayerPairToCenter(formedPair, onComplete) {
 
     // Step 1: Rise up from hand
     requestAnimationFrame(() => {
-        proxy1.style.top = `${r1.top - 60}px`;
-        proxy2.style.top = `${r2.top - 60}px`;
+        proxy1.style.top = `${r1.top - 50}px`;
+        proxy2.style.top = `${r2.top - 50}px`;
     });
 
     // Step 2: Come together with 60% overlap and glide to table center
@@ -588,17 +614,18 @@ function animateOpponentPairToCenter(drawerId, formedPair, onComplete) {
         riseDy = 40;
     }
 
+    const oppSize = getOpponentCardSize();
     const startR1 = {
-        left: sRect.left + (sRect.width / 2) - 35,
-        top: sRect.top + (sRect.height / 2) - 45,
-        width: 60,
-        height: 90
+        left: sRect.left + (sRect.width / 2) - (oppSize.width / 2) - 6,
+        top: sRect.top + (sRect.height / 2) - (oppSize.height / 2),
+        width: oppSize.width,
+        height: oppSize.height
     };
     const startR2 = {
-        left: sRect.left + (sRect.width / 2) - 25,
-        top: sRect.top + (sRect.height / 2) - 45,
-        width: 60,
-        height: 90
+        left: sRect.left + (sRect.width / 2) - (oppSize.width / 2) + 6,
+        top: sRect.top + (sRect.height / 2) - (oppSize.height / 2),
+        width: oppSize.width,
+        height: oppSize.height
     };
 
     // Spawn face-down initially
@@ -667,10 +694,11 @@ function animateCardDraw(targetPlayerId, cardIndex, stolenCard, formedPair) {
     if (sourceCard && sourceCard.closest('.position-left')) initialRotate = '90deg';
     if (sourceCard && sourceCard.closest('.position-right')) initialRotate = '-90deg';
 
+    const mySize = getMyCardSize();
     // Target position in your hand area
     const handArea = document.getElementById('myHandArea');
     const handRect = handArea.getBoundingClientRect();
-    const targetLeft = Math.max(20, handRect.left + (handRect.width / 2) - 60);
+    const targetLeft = Math.max(10, handRect.left + (handRect.width / 2) - (mySize.width / 2));
     const targetTop = handRect.top;
 
     // Create 3D card proxy
@@ -684,8 +712,8 @@ function animateCardDraw(targetPlayerId, cardIndex, stolenCard, formedPair) {
     requestAnimationFrame(() => {
         proxy.style.left = `${targetLeft}px`;
         proxy.style.top = `${targetTop}px`;
-        proxy.style.width = '120px';
-        proxy.style.height = '174px';
+        proxy.style.width = `${mySize.width}px`;
+        proxy.style.height = `${mySize.height}px`;
         proxy.style.transform = 'rotate(0deg)';
         const inner = proxy.querySelector('.anim-card-inner');
         if (inner) inner.classList.add('flipped');
@@ -715,13 +743,14 @@ function animateCardStolen(drawerId, cardIndex, formedPair) {
         height: 174
     };
 
+    const oppSize = getOpponentCardSize();
     // Find the opponent slot that drew the card
     const drawerSlot = document.querySelector(`[data-player-id="${drawerId}"]`);
     const targetRect = drawerSlot ? drawerSlot.getBoundingClientRect() : {
-        left: window.innerWidth / 2 - 30,
+        left: window.innerWidth / 2 - (oppSize.width / 2),
         top: 60,
-        width: 60,
-        height: 90
+        width: oppSize.width,
+        height: oppSize.height
     };
 
     let targetRotate = '0deg';
@@ -738,10 +767,10 @@ function animateCardStolen(drawerId, cardIndex, formedPair) {
     }
 
     requestAnimationFrame(() => {
-        proxy.style.left = `${targetRect.left + (targetRect.width / 2) - 30}px`;
-        proxy.style.top = `${targetRect.top + (targetRect.height / 2) - 45}px`;
-        proxy.style.width = '60px';
-        proxy.style.height = '90px';
+        proxy.style.left = `${targetRect.left + (targetRect.width / 2) - (oppSize.width / 2)}px`;
+        proxy.style.top = `${targetRect.top + (targetRect.height / 2) - (oppSize.height / 2)}px`;
+        proxy.style.width = `${oppSize.width}px`;
+        proxy.style.height = `${oppSize.height}px`;
         proxy.style.transform = `rotate(${targetRotate})`;
         const inner = proxy.querySelector('.anim-card-inner');
         if (inner) inner.classList.remove('flipped'); // flips to face-down
@@ -778,11 +807,12 @@ function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex, formedPair) {
     if (drawerSlot.closest('.position-left')) targetRotate = '90deg';
     if (drawerSlot.closest('.position-right')) targetRotate = '-90deg';
 
+    const oppSize = getOpponentCardSize();
     const proxy = createFloatingCardProxy({
         left: startRect.left,
         top: startRect.top,
-        width: startRect.width || 60,
-        height: startRect.height || 90
+        width: startRect.width || oppSize.width,
+        height: startRect.height || oppSize.height
     }, null, false, '0deg');
 
     if (sourceCard && sourceCard !== targetSlot) {
@@ -790,10 +820,10 @@ function animateSpectatorDraw(drawerId, targetPlayerId, cardIndex, formedPair) {
     }
 
     requestAnimationFrame(() => {
-        proxy.style.left = `${endRect.left + (endRect.width / 2) - 30}px`;
-        proxy.style.top = `${endRect.top + (endRect.height / 2) - 45}px`;
-        proxy.style.width = '60px';
-        proxy.style.height = '90px';
+        proxy.style.left = `${endRect.left + (endRect.width / 2) - (oppSize.width / 2)}px`;
+        proxy.style.top = `${endRect.top + (endRect.height / 2) - (oppSize.height / 2)}px`;
+        proxy.style.width = `${oppSize.width}px`;
+        proxy.style.height = `${oppSize.height}px`;
         proxy.style.transform = `rotate(${targetRotate})`;
     });
 
@@ -865,3 +895,56 @@ socket.on('game-over', ({ loserName }) => {
 function returnToLobby() {
     window.location.href = '/lobby.html';
 }
+
+// added code: mobile touch toggle support for header panels and center stats
+window.addEventListener('DOMContentLoaded', () => {
+    const allPlayersEl = document.getElementById('allPlayersArea');
+    const hiddenPlayersEl = document.getElementById('hiddenPlayersArea');
+    const centerEl = document.querySelector('.table-center');
+
+    if (allPlayersEl) {
+        allPlayersEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = allPlayersEl.classList.toggle('open');
+            allPlayersEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            if (hiddenPlayersEl) {
+                hiddenPlayersEl.classList.remove('open');
+                hiddenPlayersEl.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    if (hiddenPlayersEl) {
+        hiddenPlayersEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = hiddenPlayersEl.classList.toggle('open');
+            hiddenPlayersEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            if (allPlayersEl) {
+                allPlayersEl.classList.remove('open');
+                allPlayersEl.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    if (centerEl) {
+        centerEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            centerEl.classList.toggle('tooltip-open');
+        });
+    }
+
+    // Dismiss open panels when tapping anywhere else on the screen
+    document.addEventListener('click', () => {
+        if (allPlayersEl) {
+            allPlayersEl.classList.remove('open');
+            allPlayersEl.setAttribute('aria-expanded', 'false');
+        }
+        if (hiddenPlayersEl) {
+            hiddenPlayersEl.classList.remove('open');
+            hiddenPlayersEl.setAttribute('aria-expanded', 'false');
+        }
+        if (centerEl) {
+            centerEl.classList.remove('tooltip-open');
+        }
+    });
+});

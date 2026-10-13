@@ -3,24 +3,28 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- added code: mobile viewport meta tag -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Lobby - Real-Time Old Maid</title>
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
         body,
         button,
+        h2,
         h3 {
             font-family: 'Silkscreen', monospace;
         }
     </style>
 </head>
 
-<body>
-    <div id="lobbyScreen" style="text-align: center; margin: 40px auto;">
-        <h2>Room Code: <span id="displayRoomCode" style="color: #007bff;">----</span></h2>
-        <h3>Players in Lobby:</h3>
-        <ul id="playerList" style="list-style: none; padding: 0;"></ul>
-        <button id="startGameBtn" style="display: none;" onclick="triggerStartGame()">Start Game</button>
+<body class="landing-page-body">
+    <!-- added code: responsive themed lobby card -->
+    <div id="lobbyScreen" class="lobby-card">
+        <h2 class="lobby-title">Room Code: <span id="displayRoomCode" class="lobby-code-badge">----</span></h2>
+        <div class="lobby-subtitle">Players in Lobby:</div>
+        <ul id="playerList" class="lobby-player-list"></ul>
+        <button id="startGameBtn" class="landing-btn-primary" style="display: none;" onclick="triggerStartGame()">Start Game</button>
     </div>
 
     <!-- added code: leave party button -->

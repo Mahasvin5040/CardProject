@@ -863,6 +863,70 @@ body {
     font-size: 16px;
 }
 
+/* added code: lobby joker count configuration styling */
+.lobby-joker-config {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 16px 0 24px 0;
+    padding: 12px 18px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 12px;
+}
+
+.joker-config-label {
+    font-size: 15px;
+    color: #e2e8f0;
+    letter-spacing: 1px;
+}
+
+.joker-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stepper-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    background: #1e293b;
+    color: #38bdf8;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.stepper-btn:hover:not(:disabled) {
+    background: #38bdf8;
+    color: #0f172a;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+    transform: translateY(-1px);
+}
+
+.stepper-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: rgba(148, 163, 184, 0.2);
+    color: #64748b;
+}
+
+.joker-count-value {
+    min-width: 28px;
+    font-size: 20px;
+    color: #f59e0b;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
 /* ==========================================
    MOBILE & RESPONSIVE DESIGN SYSTEM
    ========================================== */
@@ -903,6 +967,22 @@ body {
         padding: 13px;
         font-size: 14px;
         min-height: 48px;
+    }
+
+    .lobby-joker-config {
+        margin: 12px 0 18px 0;
+        padding: 10px 14px;
+        gap: 12px;
+    }
+
+    .stepper-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+    }
+
+    .joker-count-value {
+        font-size: 18px;
     }
 
     /* Game Header compact bar */

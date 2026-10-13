@@ -35,12 +35,70 @@ function sendPrivateHands(roomCode) {
   });
 }
 
+// added code: helper to identify joker cards
+function isJokerCard(card) {
+  if (!card) return false;
+  return Boolean(
+    card.isJoker ||
+    card.isZombie ||
+    (typeof card.value === 'string' && card.value.startsWith('z')) ||
+    (typeof card.suit === 'string' && card.suit.startsWith('Z')) ||
+    card.value === 'z'
+  );
+}
+
+// added code: evaluate game over condition and multiple losers
+function getGameEndState(room) {
+  if (!room) return { isGameOver: false, losers: [], loserDetails: [], loserName: null };
+
+  const activePlayersWithCards = room.players.filter(p => p.hand.length > 0);
+  const allCardsInPlay = room.players.flatMap(p => p.hand);
+  const nonJokerCards = allCardsInPlay.filter(c => !isJokerCard(c));
+
+  // Game ends if all normal pairs have been matched (only Jokers remain in play)
+  // or if active players with cards is down to 1 or 0
+  const isGameOver = (allCardsInPlay.length > 0 && nonJokerCards.length === 0) || (activePlayersWithCards.length <= 1);
+
+  if (!isGameOver) {
+    return { isGameOver: false, losers: [], loserDetails: [], loserName: null };
+  }
+
+  // Find all players holding jokers
+  let losers = room.players.filter(p => p.hand.some(c => isJokerCard(c)));
+  if (losers.length === 0) {
+    losers = activePlayersWithCards;
+  }
+
+  const loserDetails = losers.map(p => ({
+    id: p.id,
+    name: p.name,
+    jokerCount: p.hand.filter(c => isJokerCard(c)).length || p.hand.length
+  }));
+
+  let loserName = 'Unknown';
+  if (loserDetails.length === 1) {
+    loserName = loserDetails[0].name;
+  } else if (loserDetails.length === 2) {
+    loserName = `${loserDetails[0].name} and ${loserDetails[1].name}`;
+  } else if (loserDetails.length > 2) {
+    loserName = loserDetails.slice(0, -1).map(l => l.name).join(', ') + ', and ' + loserDetails[loserDetails.length - 1].name;
+  }
+
+  return {
+    isGameOver: true,
+    losers,
+    loserDetails,
+    loserName
+  };
+}
+
 /**
  * Broadcasts the general public layout to everyone in the room 
  * (Who is playing, how many cards they hold, and whose turn it is).
  */
 function broadcastGameState(roomCode) {
   const room = rooms[roomCode];
+  if (!room) return;
 
   // Strip out full hand details for public update to prevent screen-peeking cheats
   const publicPlayers = room.players.map(p => ({
@@ -49,24 +107,25 @@ function broadcastGameState(roomCode) {
     cardCount: p.hand.length
   }));
 
-  // added code: include isGameOver, loserName, pairsMade, and cardsRemaining in state update
-  const isOver = room.gameState === 'game-over';
-  const activePlayers = room.players.filter(p => p.hand.length > 0);
-  const loserName = (isOver && activePlayers.length > 0) ? activePlayers[0].name : null;
+  // added code: evaluate game over state and multiple losers
+  const endState = getGameEndState(room);
+  const isOver = room.gameState === 'game-over' || endState.isGameOver;
 
-  const totalDeck = room.totalDeckCards || 53;
+  const totalDeck = room.totalDeckCards || (52 + (room.jokerCount || 1));
   const cardsInPlay = room.players.reduce((sum, p) => sum + p.hand.length, 0);
   const pairsMade = Math.floor((totalDeck - cardsInPlay) / 2);
 
   io.to(roomCode).emit('game-state-update', {
     players: publicPlayers,
-    currentTurnId: isOver ? null : room.players[room.currentTurnIndex].id,
+    currentTurnId: isOver ? null : (room.players[room.currentTurnIndex] ? room.players[room.currentTurnIndex].id : null),
     lastPair: room.lastPair || null,
     pairsMade: pairsMade,
     cardsRemaining: cardsInPlay,
     totalDeckCards: totalDeck,
     isGameOver: isOver,
-    loserName: loserName
+    loserName: endState.loserName,
+    loserDetails: endState.loserDetails,
+    jokerCount: room.jokerCount || 1
   });
 }
 
@@ -87,6 +146,7 @@ io.on('connection', (socket) => {
       gameState: 'lobby',
       hostId: pid,
       lastPair: null,
+      jokerCount: 1, // added code: configurable joker count defaulting to 1
       totalDeckCards: 53
     };
 
@@ -172,9 +232,29 @@ io.on('connection', (socket) => {
     socket.emit('lobby-synced', {
       roomCode,
       isHost,
+      jokerCount: room.jokerCount || 1, // added code: sync configured joker count
       players: room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby }))
     });
     io.to(roomCode).emit('room-update', room.players.map(p => ({ id: p.id, name: p.name, inLobby: p.inLobby })));
+  });
+
+  // added code: host configures the amount of jokers in the deck
+  socket.on('set-joker-count', ({ roomCode, jokerCount, playerId }) => {
+    if (!roomCode) return;
+    roomCode = roomCode.toUpperCase().trim();
+    const room = rooms[roomCode];
+    if (!room || room.gameState !== 'lobby') return;
+
+    const callerId = playerId || socket.id;
+    if (callerId !== room.hostId && !room.players.find(p => p.id === room.hostId && p.socketId === socket.id)) {
+      return;
+    }
+
+    const count = Math.min(5, Math.max(1, parseInt(jokerCount, 10) || 1));
+    room.jokerCount = count;
+    console.log(`🃏 Room ${roomCode} joker count set to ${count} by ${callerId}`);
+
+    io.to(roomCode).emit('joker-count-update', { jokerCount: room.jokerCount });
   });
 
   // added code: handle player intentionally leaving the room
@@ -229,8 +309,9 @@ io.on('connection', (socket) => {
     room.gameState = 'playing';
     room.lastPair = null;
 
-    // A. Create and shuffle our custom Joker deck using the engine
-    let deck = engine.createZombieDeck();
+    // A. Create and shuffle our custom Joker deck using the engine with configured jokers
+    const jokerCount = room.jokerCount || 1;
+    let deck = engine.createZombieDeck(jokerCount);
     room.totalDeckCards = deck.length;
     engine.shuffle(deck);
 
@@ -307,10 +388,10 @@ io.on('connection', (socket) => {
     // Remove card from opponent's hand array
     const [stolenCard] = targetPlayer.hand.splice(cardIndex, 1);
 
-    // added code: check if drawn card forms a matching pair by value and color
+    // added code: check if drawn card forms a matching pair by value and color (jokers never pair)
     const stolenColor = engine.getCardColor(stolenCard.suit);
     const matchIndex = currentTurnPlayer.hand.findIndex(c => {
-      if (c.value === 'z' || c.isZombie || stolenCard.value === 'z' || stolenCard.isZombie) {
+      if (isJokerCard(c) || isJokerCard(stolenCard)) {
         return false;
       }
       return c.value === stolenCard.value && engine.getCardColor(c.suit) === stolenColor;
@@ -377,11 +458,10 @@ io.on('connection', (socket) => {
     });
 
     // added code: evaluate game over condition before broadcasting state
-    const activePlayersWithCards = room.players.filter(p => p.hand.length > 0);
+    const endState = getGameEndState(room);
 
-    if (activePlayersWithCards.length <= 1) {
+    if (endState.isGameOver) {
       room.gameState = 'game-over';
-      const loserName = activePlayersWithCards[0] ? activePlayersWithCards[0].name : 'Unknown';
 
       // added code: reset inLobby flag so returning to lobby is accurately tracked
       room.players.forEach(p => {
@@ -393,7 +473,8 @@ io.on('connection', (socket) => {
 
       setTimeout(() => {
         io.to(roomCode).emit('game-over', {
-          loserName
+          loserName: endState.loserName,
+          loserDetails: endState.loserDetails
         });
       }, 1500);
     } else {

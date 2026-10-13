@@ -37,7 +37,7 @@ const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'
 function getCardColor(suit) {
   if (suit === '♠' || suit === '♣') return 'black';
   if (suit === '♥' || suit === '♦') return 'red';
-  return 'joker'; // Your 'Z' suit Joker gets its own category
+  return 'joker_' + suit; // each Joker suit gets its own unique color category so they never match
 }
 
 // ==========================================
@@ -45,10 +45,10 @@ function getCardColor(suit) {
 // ==========================================
 
 /**
- * Generates a standard 52-card deck, then removes ONE Queen 
- * to create a 51-card Old Maid deck.
+ * Generates a standard 52-card deck, then adds the configured number of Jokers.
+ * Each Joker has a distinct suit and value so they cannot be paired together.
  */
-function createZombieDeck() {
+function createZombieDeck(jokerCount = 1) {
   const deck = [];
 
   // Generate all 52 cards
@@ -57,14 +57,17 @@ function createZombieDeck() {
       deck.push({ suit, value });
     }
   }
-  deck.push({ suit: 'Z', value: 'z' });
-  // Find the index of exactly one Queen (e.g., Queen of Spades) and remove it
-  /*
-  const queenIndex = deck.findIndex(card => card.suit === '♠' && card.value === 'Q');
-  if (queenIndex !== -1) {
-    deck.splice(queenIndex, 1);
+
+  // added code: generate configurable number of jokers with unique suits and values
+  const count = Math.max(1, parseInt(jokerCount, 10) || 1);
+  for (let i = 1; i <= count; i++) {
+    deck.push({
+      suit: `Z${i}`,
+      value: `z${i}`,
+      isJoker: true,
+      isZombie: true
+    });
   }
-  */
 
   return deck;
 }
@@ -99,15 +102,18 @@ function dealCards(deck, players) {
 }
 
 /**
- * Scans a player's hand, removes any pairs matching by VALUE,
- * and leaves unmatched cards (including the Joker).
+ * Scans a player's hand, removes any pairs matching by VALUE and COLOR,
+ * and leaves unmatched cards (Jokers are never discarded).
  */
 function discardPairs(hand) {
   const counts = {};
 
   // 1. Create a unique key for each value + color combination
-  // Example: King of Spades becomes "K_black", King of Hearts becomes "K_red"
+  // JOKERS are never paired or discarded
   hand.forEach(card => {
+    if (card.isJoker || card.isZombie || (card.suit && card.suit.startsWith && card.suit.startsWith('Z')) || (card.value && card.value.startsWith && card.value.startsWith('z'))) {
+      return;
+    }
     const color = getCardColor(card.suit);
     const key = `${card.value}_${color}`;
     counts[key] = (counts[key] || 0) + 1;
@@ -115,16 +121,18 @@ function discardPairs(hand) {
 
   // 2. Filter the hand using our new unique value_color keys
   return hand.filter(card => {
+    if (card.isJoker || card.isZombie || (card.suit && card.suit.startsWith && card.suit.startsWith('Z')) || (card.value && card.value.startsWith && card.value.startsWith('z'))) {
+      return true; // Keep ALL jokers always!
+    }
     const color = getCardColor(card.suit);
     const key = `${card.value}_${color}`;
     const totalCount = counts[key];
 
     if (totalCount % 2 === 0) {
-      // Even count (e.g., 2 cards or 4 cards of "K_black") means they pair off perfectly. Drop them.
+      // Even count means they pair off perfectly. Drop them.
       return false;
     } else {
-      // Odd count (e.g., 1 or 3 cards) means one card must remain.
-      // Keep the first one we find, drop the rest.
+      // Odd count means one card must remain.
       counts[key]--;
       return counts[key] === 0;
     }

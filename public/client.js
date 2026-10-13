@@ -22,7 +22,9 @@ socket.on('connect', () => {
 });
 
 function getCardImagePath(card) {
-    if (card.value === 'z' || card.isZombie) {
+    if (!card) return '/assets/cards/JokerW.png';
+    // added code: all jokers share the same JokerW face card
+    if (card.isJoker || card.isZombie || (card.value && typeof card.value === 'string' && card.value.startsWith('z')) || (card.suit && typeof card.suit === 'string' && card.suit.startsWith('Z')) || card.value === 'z') {
         return '/assets/cards/JokerW.png';
     }
 
@@ -140,8 +142,9 @@ function triggerOpponentShuffle(slotId) {
 // Unique key per card to track positions during shuffles
 function getCardKey(card) {
     if (!card) return 'UNKNOWN';
-    if (card.value === 'z' || card.isZombie) {
-        return 'ZOMBIE';
+    // added code: distinct card key for each joker card for smooth FLIP animations
+    if (card.isJoker || card.isZombie || (card.value && typeof card.value === 'string' && card.value.startsWith('z')) || (card.suit && typeof card.suit === 'string' && card.suit.startsWith('Z')) || card.value === 'z') {
+        return `JOKER_${card.suit}_${card.value}`;
     }
     return `${card.suit}_${card.value}`;
 }
@@ -257,13 +260,44 @@ function renderMyHand(hand) {
     triggerHandShuffle();
 }
 
+// added code: format game over text for single or multiple losers and joker counts
+function formatGameOverText(loserDetails, fallbackName) {
+    if (loserDetails && Array.isArray(loserDetails) && loserDetails.length > 0) {
+        if (loserDetails.length === 1) {
+            const loser = loserDetails[0];
+            const jCount = loser.jokerCount || 1;
+            if (jCount > 1) {
+                return `<strong>GAME OVER!</strong> ${loser.name} is left holding ${jCount} Jokers!`;
+            } else {
+                return `<strong>GAME OVER!</strong> ${loser.name} is left holding the Joker!`;
+            }
+        } else {
+            // Multiple losers
+            const names = loserDetails.map(l => l.name);
+            let joinedNames = '';
+            if (names.length === 2) {
+                joinedNames = names.join(' and ');
+            } else {
+                joinedNames = names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+            }
+            return `<strong>GAME OVER!</strong> ${joinedNames} are left holding Jokers!`;
+        }
+    }
+
+    const name = fallbackName || 'Someone';
+    if (name.includes(' and ')) {
+        return `<strong>GAME OVER!</strong> ${name} are left holding Jokers!`;
+    }
+    return `<strong>GAME OVER!</strong> ${name} is left holding the Joker!`;
+}
+
 // Render table slots and opponent hands
-function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPairsMade, cardsRemaining: serverCardsRemaining, totalDeckCards, isGameOver: serverGameOver, loserName: serverLoserName }) {
+function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPairsMade, cardsRemaining: serverCardsRemaining, totalDeckCards, isGameOver: serverGameOver, loserName: serverLoserName, loserDetails: serverLoserDetails }) {
     const turnIndicator = document.getElementById('turnIndicator');
 
     // added code: handle game over state check
     const activeRemaining = players.filter(p => p.cardCount > 0);
-    if (serverGameOver || isGameOver || activeRemaining.length <= 1) {
+    if (serverGameOver || isGameOver) {
         isGameOver = true;
         amIActiveTurn = false;
         const backBtn = document.getElementById('backToLobbyBtn');
@@ -312,8 +346,7 @@ function renderGameState({ players, currentTurnId, lastPair, pairsMade: serverPa
 
     // Update Turn Banner Text
     if (isGameOver) {
-        const loser = serverLoserName || (activeRemaining.length === 1 ? activeRemaining[0].name : 'Unknown');
-        turnIndicator.innerHTML = `🚨 <strong>GAME OVER!</strong> ${loser} is left holding the Joker! 🤡`;
+        turnIndicator.innerHTML = formatGameOverText(serverLoserDetails, serverLoserName || (activeRemaining.length === 1 ? activeRemaining[0].name : 'Unknown'));
     } else if (amIActiveTurn) {
         if (isValidTarget) {
             turnIndicator.textContent = `🟢 Your Turn! Pick a card from ${nextNeighbor.name}`;
@@ -883,10 +916,10 @@ function sendDrawRequest(targetPlayerId, cardIndex) {
 }
 
 // added code: handle end of game trigger cleanly
-socket.on('game-over', ({ loserName }) => {
+socket.on('game-over', ({ loserName, loserDetails }) => {
     isGameOver = true;
     amIActiveTurn = false;
-    document.getElementById('turnIndicator').innerHTML = `🚨 <strong>GAME OVER!</strong> ${loserName} is left holding the Joker! 🤡`;
+    document.getElementById('turnIndicator').innerHTML = formatGameOverText(loserDetails, loserName);
     const backBtn = document.getElementById('backToLobbyBtn');
     if (backBtn) backBtn.style.display = 'block';
 });

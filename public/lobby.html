@@ -24,6 +24,15 @@
         <h2 class="lobby-title">Room Code: <span id="displayRoomCode" class="lobby-code-badge">----</span></h2>
         <div class="lobby-subtitle">Players in Lobby:</div>
         <ul id="playerList" class="lobby-player-list"></ul>
+        <!-- added code: Joker count configuration -->
+        <div id="jokerConfigArea" class="lobby-joker-config">
+            <span class="joker-config-label">Jokers:</span>
+            <div class="joker-stepper">
+                <button type="button" id="jokerDecBtn" class="stepper-btn" onclick="adjustJokerCount(-1)">-</button>
+                <span id="jokerCountDisplay" class="joker-count-value">1</span>
+                <button type="button" id="jokerIncBtn" class="stepper-btn" onclick="adjustJokerCount(1)">+</button>
+            </div>
+        </div>
         <button id="startGameBtn" class="landing-btn-primary" style="display: none;" onclick="triggerStartGame()">Start Game</button>
     </div>
 

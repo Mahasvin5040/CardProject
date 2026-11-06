@@ -20,6 +20,7 @@ export function setupGo(app, io) {
       size: room.size,
       hasBlack: !!room.blackPlayerId,
       hasWhite: !!room.whitePlayerId,
+      gameStarted: room.gameStarted,
       gameState: room.game.getState()
     });
   });
@@ -39,6 +40,7 @@ export function setupGo(app, io) {
         roomId: room.id,
         role: 'black',
         isHost: true,
+        gameStarted: room.gameStarted,
         state: room.game.getState(),
         players: {
           black: true,
@@ -49,7 +51,8 @@ export function setupGo(app, io) {
       io.to(room.id).emit('players_updated', {
         black: true,
         white: false,
-        spectatorsCount: 0
+        spectatorsCount: 0,
+        gameStarted: room.gameStarted
       });
     });
 
@@ -73,6 +76,7 @@ export function setupGo(app, io) {
         roomId: room.id,
         role,
         isHost,
+        gameStarted: room.gameStarted,
         state: room.game.getState(),
         players: {
           black: !!room.blackPlayerId,
@@ -84,7 +88,29 @@ export function setupGo(app, io) {
       io.to(room.id).emit('players_updated', {
         black: !!room.blackPlayerId,
         white: !!room.whitePlayerId,
-        spectatorsCount: room.spectatorIds.size
+        spectatorsCount: room.spectatorIds.size,
+        gameStarted: room.gameStarted
+      });
+    });
+
+    socket.on('start_game', ({ roomId, playerId }) => {
+      if (!roomId) return;
+      const targetRoomId = roomId.toUpperCase().trim();
+      const result = roomManager.startGame(targetRoomId, playerId);
+      if (!result.success) {
+        return socket.emit('error_message', result.error);
+      }
+
+      const room = result.room;
+      io.to(targetRoomId).emit('game_started', {
+        state: room.game.getState(),
+        gameStarted: true
+      });
+      io.to(targetRoomId).emit('players_updated', {
+        black: !!room.blackPlayerId,
+        white: !!room.whitePlayerId,
+        spectatorsCount: room.spectatorIds.size,
+        gameStarted: true
       });
     });
 
@@ -101,7 +127,8 @@ export function setupGo(app, io) {
         io.to(targetRoomId).emit('players_updated', {
           black: !!result.room.blackPlayerId,
           white: !!result.room.whitePlayerId,
-          spectatorsCount: result.room.spectatorIds.size
+          spectatorsCount: result.room.spectatorIds.size,
+          gameStarted: result.room.gameStarted
         });
         io.to(targetRoomId).emit('player_left', { playerId });
       }
@@ -130,6 +157,10 @@ export function setupGo(app, io) {
         return socket.emit('error_message', 'Room not found');
       }
 
+      if (!room.gameStarted) {
+        return socket.emit('error_message', 'Game has not started yet. Waiting for host to press Start Game.');
+      }
+
       const role = roomManager.getPlayerRole(room, playerId);
       const color = roomManager.getColorFromRole(role);
 
@@ -145,6 +176,7 @@ export function setupGo(app, io) {
       // Broadcast updated state to all in room
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'move', r, c, color, captured: result.capturedStones }
       });
     });
@@ -152,6 +184,10 @@ export function setupGo(app, io) {
     socket.on('pass', ({ roomId, playerId }) => {
       const room = roomManager.getRoom(roomId);
       if (!room) return;
+
+      if (!room.gameStarted) {
+        return socket.emit('error_message', 'Game has not started yet.');
+      }
 
       const role = roomManager.getPlayerRole(room, playerId);
       const color = roomManager.getColorFromRole(role);
@@ -166,6 +202,7 @@ export function setupGo(app, io) {
 
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'pass', color, gameEnded: result.gameEnded }
       });
     });
@@ -173,6 +210,10 @@ export function setupGo(app, io) {
     socket.on('resign', ({ roomId, playerId }) => {
       const room = roomManager.getRoom(roomId);
       if (!room) return;
+
+      if (!room.gameStarted) {
+        return socket.emit('error_message', 'Game has not started yet.');
+      }
 
       const role = roomManager.getPlayerRole(room, playerId);
       const color = roomManager.getColorFromRole(role);
@@ -187,6 +228,7 @@ export function setupGo(app, io) {
 
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'resign', color }
       });
     });
@@ -207,6 +249,7 @@ export function setupGo(app, io) {
 
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'toggle_dead_stone', r, c }
       });
     });
@@ -218,6 +261,7 @@ export function setupGo(app, io) {
       room.game.confirmScore();
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'confirm_score' }
       });
     });
@@ -233,19 +277,36 @@ export function setupGo(app, io) {
 
       io.to(roomId).emit('game_updated', {
         state: room.game.getState(),
+        gameStarted: room.gameStarted,
         lastAction: { type: 'resume_play' }
       });
     });
 
     socket.on('restart_game', ({ roomId, playerId, size }) => {
-      const room = roomManager.resetRoomGame(roomId, size, playerId);
-      if (!room) {
+      const room = roomManager.getRoom(roomId);
+      if (!room) return;
+      if (room.hostPlayerId && room.hostPlayerId !== playerId) {
         return socket.emit('error_message', 'Only the host can restart the game or change board size.');
+      }
+      if (room.gameStarted && room.game.status === 'PLAYING') {
+        return socket.emit('error_message', 'Cannot restart the board while a game is in progress.');
+      }
+
+      const updatedRoom = roomManager.resetRoomGame(roomId, size, playerId);
+      if (!updatedRoom) {
+        return socket.emit('error_message', 'Unable to restart game.');
       }
 
       io.to(roomId).emit('game_updated', {
-        state: room.game.getState(),
+        state: updatedRoom.game.getState(),
+        gameStarted: updatedRoom.gameStarted,
         lastAction: { type: 'restart' }
+      });
+      io.to(roomId).emit('players_updated', {
+        black: !!updatedRoom.blackPlayerId,
+        white: !!updatedRoom.whitePlayerId,
+        spectatorsCount: updatedRoom.spectatorIds.size,
+        gameStarted: updatedRoom.gameStarted
       });
     });
 
@@ -259,4 +320,3 @@ export function setupGo(app, io) {
     });
   });
 }
-

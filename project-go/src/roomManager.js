@@ -22,7 +22,8 @@ export class RoomManager {
       spectatorIds: new Set(),
       playerSockets: new Map(), // playerId -> socketId
       createdAt: Date.now(),
-      messages: []
+      messages: [],
+      gameStarted: false
     };
     this.rooms.set(roomId, room);
     return room;
@@ -107,6 +108,25 @@ export class RoomManager {
     return null;
   }
 
+  startGame(roomId, playerId) {
+    const room = this.getRoom(roomId);
+    if (!room) {
+      return { success: false, error: 'Room not found.' };
+    }
+    if (room.hostPlayerId && room.hostPlayerId !== playerId) {
+      return { success: false, error: 'Only the host can start the game.' };
+    }
+    if (!room.whitePlayerId) {
+      return { success: false, error: 'Cannot start game without an opponent.' };
+    }
+    if (room.gameStarted) {
+      return { success: false, error: 'Game has already started.' };
+    }
+
+    room.gameStarted = true;
+    return { success: true, room };
+  }
+
   resetRoomGame(roomId, size, playerId) {
     const room = this.getRoom(roomId);
     if (!room) return null;
@@ -116,10 +136,16 @@ export class RoomManager {
       return null;
     }
 
+    // Host cannot restart during middle of a game
+    if (room.gameStarted && room.game.status === GAME_STATUS.PLAYING) {
+      return null;
+    }
+
     if (size && (size === 9 || size === 13 || size === 19)) {
       room.size = size;
     }
     room.game = new GoGame(room.size);
+    room.gameStarted = false;
     return room;
   }
 

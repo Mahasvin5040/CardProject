@@ -45,6 +45,8 @@ const blackCapturesEl = document.getElementById('blackCaptures');
 const whiteCapturesEl = document.getElementById('whiteCaptures');
 const btnPass = document.getElementById('btnPass');
 const btnResign = document.getElementById('btnResign');
+const btnStartGame = document.getElementById('btnStartGame');
+const boardSection = document.querySelector('.board-section');
 const ruleNotification = document.getElementById('ruleNotification');
 
 // DOM Elements - Scoring
@@ -67,6 +69,8 @@ let currentRoomId = null;
 let myRole = 'none'; // 'black', 'white', 'spectator', 'none'
 let myColor = null;
 let currentGameState = null;
+let gameStarted = false;
+let currentPlayers = { black: false, white: false };
 let hoverCoord = null;
 let notificationTimeout = null;
 let showCoordinates = false; // Minimalist aesthetic as in photo
@@ -126,6 +130,8 @@ function resetToInitialScreen() {
   myRole = 'none';
   myColor = null;
   currentGameState = null;
+  gameStarted = false;
+  currentPlayers = { black: false, white: false };
   hoverCoord = null;
 
   // Clear query parameter from URL
@@ -133,6 +139,7 @@ function resetToInitialScreen() {
 
   // Disable board and other cards via CSS class
   document.body.classList.add('not-in-room');
+  boardSection.classList.add('board-disabled');
 
   // Room Info Card view
   roomInputContainer.classList.remove('hidden');
@@ -143,7 +150,15 @@ function resetToInitialScreen() {
 
   // Game Setup Card view
   boardSizeRow.classList.remove('hidden');
+  boardSizeSelect.disabled = false;
   btnRestartGame.classList.remove('hidden');
+  btnRestartGame.disabled = false;
+
+  // Actions
+  btnPass.disabled = true;
+  btnResign.disabled = true;
+  btnStartGame.classList.add('hidden');
+  btnStartGame.disabled = true;
 
   // Status & Captures reset
   turnBanner.className = 'turn-banner';
@@ -154,8 +169,6 @@ function resetToInitialScreen() {
   opponentStatus.style.display = 'block';
   blackCapturesEl.textContent = '0';
   whiteCapturesEl.textContent = '0';
-  btnPass.disabled = true;
-  btnResign.disabled = true;
   scoringPanel.classList.add('hidden');
 
   // Draw empty clean board
@@ -167,7 +180,7 @@ function setupActiveRoomUI(host) {
   isInRoom = true;
   isHost = host;
 
-  // Enable board and all other cards
+  // Enable cards container
   document.body.classList.remove('not-in-room');
   updateUrl(currentRoomId);
 
@@ -190,6 +203,84 @@ function setupActiveRoomUI(host) {
     btnEndOrLeaveRoom.className = 'btn btn-secondary btn-full';
     boardSizeRow.classList.add('hidden'); // Host only
     btnRestartGame.classList.add('hidden'); // Host only
+  }
+
+  updateLobbyAndGameUI();
+}
+
+// UI Logic: Coordinates board disabled state, start button, and setup card controls
+function updateLobbyAndGameUI() {
+  if (!isInRoom) return;
+
+  if (!gameStarted) {
+    // 1. Board is disabled for BOTH players immediately after room is created & while waiting
+    boardSection.classList.add('board-disabled');
+
+    // 2. Pass & Resign buttons are disabled before game begins
+    btnPass.disabled = true;
+    btnResign.disabled = true;
+
+    // 3. Start button: ONLY visible to host under pass/resign
+    if (isHost) {
+      btnStartGame.classList.remove('hidden');
+      // Disabled immediately after creation, enabled once opponent connects
+      btnStartGame.disabled = !currentPlayers.white;
+    } else {
+      btnStartGame.classList.add('hidden');
+      btnStartGame.disabled = true;
+    }
+
+    // 4. Board size selector & restart board button enabled for host before start
+    if (isHost) {
+      boardSizeSelect.disabled = false;
+      btnRestartGame.disabled = false;
+    } else {
+      boardSizeSelect.disabled = true;
+      btnRestartGame.disabled = true;
+    }
+
+    // 5. Turn banner & opponent status text
+    turnBanner.className = 'turn-banner';
+    if (!currentPlayers.white) {
+      turnText.textContent = 'Waiting for Opponent';
+      opponentStatus.textContent = 'Waiting for opponent to connect (share the room link)...';
+      opponentStatus.style.display = 'block';
+    } else {
+      if (isHost) {
+        turnText.textContent = 'Opponent Ready';
+        opponentStatus.textContent = 'Opponent joined! Press "Start Game" to begin.';
+      } else {
+        turnText.textContent = 'Waiting for Host';
+        opponentStatus.textContent = 'Connected! Waiting for host to start the game...';
+      }
+      opponentStatus.style.display = 'block';
+    }
+  } else {
+    // Game HAS started
+    // 1. Board is enabled for both players
+    boardSection.classList.remove('board-disabled');
+
+    // 2. Start button disappears
+    btnStartGame.classList.add('hidden');
+    btnStartGame.disabled = true;
+
+    // 3. Board size selector & restart board button disabled so host cannot restart mid-game
+    boardSizeSelect.disabled = true;
+    if (currentGameState && (currentGameState.status === 'PLAYING' || currentGameState.status === 'SCORING')) {
+      btnRestartGame.disabled = true;
+    } else if (currentGameState && currentGameState.status === 'ENDED') {
+      btnRestartGame.disabled = !isHost;
+    }
+
+    // 4. Pass & Resign buttons based on current turn
+    if (currentGameState && currentGameState.status === 'PLAYING') {
+      btnPass.disabled = (myColor !== currentGameState.currentTurn);
+      btnResign.disabled = (myColor === null);
+      opponentStatus.style.display = 'none';
+    } else if (currentGameState && (currentGameState.status === 'SCORING' || currentGameState.status === 'ENDED')) {
+      btnPass.disabled = true;
+      btnResign.disabled = true;
+    }
   }
 }
 
@@ -252,14 +343,26 @@ btnEndOrLeaveRoom.addEventListener('click', () => {
 
 // In-Game Buttons
 btnPass.addEventListener('click', () => {
-  if (!isInRoom || !currentGameState || currentGameState.status !== 'PLAYING') return;
+  if (!isInRoom || !currentGameState || !gameStarted || currentGameState.status !== 'PLAYING') return;
   socket.emit('pass', { roomId: currentRoomId, playerId });
 });
 
 btnResign.addEventListener('click', () => {
-  if (!isInRoom || !currentGameState || (currentGameState.status !== 'PLAYING' && currentGameState.status !== 'SCORING')) return;
+  if (!isInRoom || !currentGameState || !gameStarted || (currentGameState.status !== 'PLAYING' && currentGameState.status !== 'SCORING')) return;
   if (confirm('Are you sure you want to resign the game?')) {
     socket.emit('resign', { roomId: currentRoomId, playerId });
+  }
+});
+
+btnStartGame.addEventListener('click', () => {
+  if (!isInRoom || !isHost || !currentPlayers.white) return;
+  socket.emit('start_game', { roomId: currentRoomId, playerId });
+});
+
+boardSizeSelect.addEventListener('change', () => {
+  if (isInRoom && isHost && !gameStarted) {
+    const size = parseInt(boardSizeSelect.value, 10);
+    socket.emit('restart_game', { roomId: currentRoomId, playerId, size });
   }
 });
 
@@ -280,10 +383,12 @@ btnResumePlay.addEventListener('click', () => {
 });
 
 // Socket Events
-socket.on('room_joined', ({ roomId: joinedRoomId, role, isHost: hostStatus, state, players }) => {
+socket.on('room_joined', ({ roomId: joinedRoomId, role, isHost: hostStatus, gameStarted: started, state, players }) => {
   currentRoomId = joinedRoomId;
   myRole = role;
   myColor = role === 'black' ? BLACK : role === 'white' ? WHITE : null;
+  gameStarted = !!started;
+  currentPlayers = players || { black: true, white: false };
 
   setupActiveRoomUI(hostStatus);
 
@@ -296,8 +401,9 @@ socket.on('room_joined', ({ roomId: joinedRoomId, role, isHost: hostStatus, stat
     playerRoleDisplay.style.color = '#9aa2b1';
   }
 
-  updatePlayerPresence(players);
+  updatePlayerPresence(currentPlayers);
   updateGameState(state);
+  updateLobbyAndGameUI();
 });
 
 socket.on('join_error', ({ error }) => {
@@ -320,12 +426,29 @@ socket.on('left_room_success', () => {
 
 socket.on('players_updated', (players) => {
   if (!isInRoom) return;
-  updatePlayerPresence(players);
+  currentPlayers = { black: !!players.black, white: !!players.white };
+  if (players.gameStarted !== undefined) {
+    gameStarted = !!players.gameStarted;
+  }
+  updatePlayerPresence(currentPlayers);
+  updateLobbyAndGameUI();
 });
 
-socket.on('game_updated', ({ state, lastAction }) => {
+socket.on('game_started', ({ state, gameStarted: started }) => {
   if (!isInRoom) return;
+  gameStarted = started !== undefined ? started : true;
   updateGameState(state);
+  updateLobbyAndGameUI();
+  showNotification('Game has started! Black moves first.', true);
+});
+
+socket.on('game_updated', ({ state, gameStarted: started, lastAction }) => {
+  if (!isInRoom) return;
+  if (started !== undefined) {
+    gameStarted = !!started;
+  }
+  updateGameState(state);
+  updateLobbyAndGameUI();
 
   if (lastAction) {
     if (lastAction.type === 'pass') {
@@ -351,36 +474,34 @@ socket.on('error_message', (msg) => {
 });
 
 function updatePlayerPresence(players) {
-  if (!players.black || !players.white) {
-    opponentStatus.textContent = 'Waiting for opponent to connect (share the room link)...';
-    opponentStatus.style.display = 'block';
-  } else {
-    opponentStatus.textContent = 'Both players connected.';
-    opponentStatus.style.display = 'none';
-  }
+  currentPlayers = { black: !!players.black, white: !!players.white };
+  updateLobbyAndGameUI();
 }
 
 function updateGameState(state) {
   currentGameState = state;
   boardSizeSelect.value = state.size;
 
-  // Update Turn Banner
-  if (state.status === 'PLAYING') {
-    if (state.currentTurn === BLACK) {
-      turnBanner.className = 'turn-banner black-turn';
-      turnText.textContent = "Black's Turn" + (myColor === BLACK ? ' (You)' : '');
-    } else {
-      turnBanner.className = 'turn-banner white-turn';
-      turnText.textContent = "White's Turn" + (myColor === WHITE ? ' (You)' : '');
+  // Update Turn Banner & Scoring only if game has started
+  if (gameStarted) {
+    if (state.status === 'PLAYING') {
+      if (state.currentTurn === BLACK) {
+        turnBanner.className = 'turn-banner black-turn';
+        turnText.textContent = "Black's Turn" + (myColor === BLACK ? ' (You)' : '');
+      } else {
+        turnBanner.className = 'turn-banner white-turn';
+        turnText.textContent = "White's Turn" + (myColor === WHITE ? ' (You)' : '');
+      }
+      scoringPanel.classList.add('hidden');
+      btnPass.disabled = (myColor !== state.currentTurn);
+      btnResign.disabled = (myColor === null);
+    } else if (state.status === 'SCORING' || state.status === 'ENDED') {
+      turnBanner.className = 'turn-banner';
+      turnText.textContent = state.status === 'SCORING' ? 'Scoring Phase' : 'Game Ended';
+      btnPass.disabled = true;
+      btnResign.disabled = true;
+      renderScoring(state);
     }
-    scoringPanel.classList.add('hidden');
-    btnPass.disabled = (myColor !== state.currentTurn);
-    btnResign.disabled = (myColor === null);
-  } else if (state.status === 'SCORING' || state.status === 'ENDED') {
-    turnBanner.className = 'turn-banner';
-    turnText.textContent = state.status === 'SCORING' ? 'Scoring Phase' : 'Game Ended';
-    btnPass.disabled = true;
-    renderScoring(state);
   }
 
   // Update Captures
@@ -388,7 +509,11 @@ function updateGameState(state) {
   whiteCapturesEl.textContent = state.captures[WHITE] || 0;
 
   drawBoard();
+  updateLobbyAndGameUI();
 }
+
+//  drawBoard();
+//}
 
 function renderScoring(state) {
   scoringPanel.classList.remove('hidden');
@@ -622,6 +747,7 @@ function drawBoard() {
   // Draw Hover Ghost Stone
   if (
     isInRoom &&
+    gameStarted &&
     hoverCoord &&
     currentGameState.status === 'PLAYING' &&
     currentGameState.board[hoverCoord.r][hoverCoord.c] === EMPTY &&
@@ -686,7 +812,7 @@ function drawGhostStone(r, c, color, radius) {
 // ---------------- Canvas Event Handlers ---------------- //
 
 canvas.addEventListener('mousemove', (e) => {
-  if (!isInRoom || !currentGameState) {
+  if (!isInRoom || !currentGameState || !gameStarted) {
     if (hoverCoord !== null) {
       hoverCoord = null;
       drawBoard();
@@ -721,7 +847,7 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 canvas.addEventListener('click', (e) => {
-  if (!isInRoom || !currentGameState) return;
+  if (!isInRoom || !currentGameState || !gameStarted) return;
 
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;

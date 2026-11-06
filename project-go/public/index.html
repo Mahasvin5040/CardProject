@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Go (Weiqi / Baduk) — Online Minimalist</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body class="not-in-room">
   <div class="app-container">
     <!-- Top Minimalist Header -->
     <header class="app-header" style="position: relative;">
-      <a href="/" class="btn btn-secondary" style="text-decoration: none; position: absolute; left: 0; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">&larr; Card Game</a>
+      <a href="/" class="btn btn-secondary"
+        style="text-decoration: none; position: absolute; left: 0; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">&larr;
+        Card Game</a>
       <div class="logo-area">
         <h1>Go</h1>
-        <span class="subtext">Chinese Area Rules &middot; Online Multiplayer</span>
+        <span class="subtext">Minimalist &middot; Online Multiplayer</span>
       </div>
     </header>
 
@@ -60,8 +64,9 @@
         <div class="card actions-card">
           <div class="card-header">Actions</div>
           <div class="card-body action-buttons">
-            <button id="btnPass" class="btn btn-warning">Pass Turn</button>
-            <button id="btnResign" class="btn btn-danger">Resign</button>
+            <button id="btnPass" class="btn btn-warning" disabled>Pass Turn</button>
+            <button id="btnResign" class="btn btn-danger" disabled>Resign</button>
+            <button id="btnStartGame" class="btn btn-success btn-start hidden" disabled>Start Game</button>
           </div>
         </div>
 
@@ -77,16 +82,16 @@
               <div class="score-row black-row">
                 <span class="stone-icon black"></span>
                 <span>Black:</span>
-                <span id="scoreBlackStones">0</span> st + 
-                <span id="scoreBlackTerritory">0</span> ter = 
+                <span id="scoreBlackStones">0</span> st +
+                <span id="scoreBlackTerritory">0</span> ter =
                 <strong id="scoreBlackTotal">0</strong>
               </div>
               <div class="score-row white-row">
                 <span class="stone-icon white"></span>
                 <span>White:</span>
-                <span id="scoreWhiteStones">0</span> st + 
-                <span id="scoreWhiteTerritory">0</span> ter + 
-                <span id="scoreKomi">7.5</span> = 
+                <span id="scoreWhiteStones">0</span> st +
+                <span id="scoreWhiteTerritory">0</span> ter +
+                <span id="scoreKomi">7.5</span> =
                 <strong id="scoreWhiteTotal">7.5</strong>
               </div>
             </div>
@@ -115,7 +120,8 @@
           <div class="card-body">
             <!-- Initial state: input room code -->
             <div id="roomInputContainer" class="room-input-container">
-              <input type="text" id="roomCodeInput" placeholder="Enter Room Code" maxlength="8" spellcheck="false" autocomplete="off">
+              <input type="text" id="roomCodeInput" placeholder="Enter Room Code" maxlength="8" spellcheck="false"
+                autocomplete="off">
             </div>
 
             <!-- Active room state: pill showing room code -->
@@ -176,7 +182,8 @@
               <li><strong>Captures:</strong> Groups with 0 liberties removed.</li>
               <li><strong>Suicide Rule:</strong> Zero-liberty moves forbidden unless capturing.</li>
               <li><strong>Ko Rule:</strong> Immediate board repetition forbidden.</li>
-              <li><strong>Ending &amp; Scoring:</strong> 2 passes trigger Chinese Area Counting (Stones + Territory + Komi).</li>
+              <li><strong>Ending &amp; Scoring:</strong> 2 passes trigger Chinese Area Counting (Stones + Territory +
+                Komi).</li>
             </ul>
           </div>
         </div>
@@ -188,4 +195,5 @@
   <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="client.js"></script>
 </body>
+
 </html>

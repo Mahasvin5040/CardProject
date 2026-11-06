@@ -11,6 +11,9 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// Serve static frontend files for Go under /go
+app.use('/go', express.static(path.join(__dirname, 'project-go', 'public')));
+
 // Serve static frontend files from the "public" folder
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -522,6 +525,14 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// Initialize ProjectGo (Baduk / Weiqi)
+import('./project-go/goHandler.js').then(({ setupGo }) => {
+  setupGo(app, io);
+  console.log('⚪⚫ ProjectGo online at /go');
+}).catch(err => {
+  console.error('Failed to initialize ProjectGo:', err);
 });
 
 // Start the server

@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <!-- added code: mobile viewport meta tag -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Real-Time Old Maid</title>
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -25,16 +26,24 @@
         <h1 class="landing-title">Real-Time Old Maid</h1>
         <div class="landing-subtitle">🃏 Don't Get Caught With The Joker! 🃏</div>
 
-        <input type="text" id="playerName" class="landing-input" placeholder="ENTER YOUR NAME" maxlength="15" autocomplete="off" />
+        <input type="text" id="playerName" class="landing-input" placeholder="ENTER YOUR NAME" maxlength="15"
+            autocomplete="off" />
 
         <button class="landing-btn-primary" onclick="createRoom()">Create New Game</button>
 
         <div class="landing-divider"><span>OR</span></div>
 
-        <input type="text" id="roomCodeInput" class="landing-input" placeholder="4-LETTER ROOM CODE" maxlength="4" style="text-transform: uppercase;" autocomplete="off" />
+        <input type="text" id="roomCodeInput" class="landing-input" placeholder="4-LETTER ROOM CODE" maxlength="4"
+            style="text-transform: uppercase;" autocomplete="off" />
         <button class="landing-btn-secondary" onclick="joinRoom()">Join Game</button>
-    </div>
 
+        <div class="landing-divider"><span>OR</span></div>
+
+        <a href="/go/" class="landing-btn-secondary"
+            style="text-decoration: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: #0f172a; border-color: #38bdf8; color: #38bdf8;">Play
+            Go Online</a>
+    </div>
+    <!-- &#x26aa;&#x26ab; Emojis -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="landing.js"></script>
 </body>

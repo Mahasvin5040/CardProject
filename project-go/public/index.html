@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Go (Weiqi / Baduk) — Online Minimalist</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="not-in-room">
+  <div class="app-container">
+    <!-- Top Minimalist Header -->
+    <header class="app-header" style="position: relative;">
+      <a href="/" class="btn btn-secondary" style="text-decoration: none; position: absolute; left: 0; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">&larr; Card Game</a>
+      <div class="logo-area">
+        <h1>Go</h1>
+        <span class="subtext">Chinese Area Rules &middot; Online Multiplayer</span>
+      </div>
+    </header>
+
+    <!-- Main 3-Column Layout: Left Sidebar, Centered Board, Right Sidebar -->
+    <main class="main-layout">
+      <!-- LEFT SIDEBAR: Game Status, Captures, Scoring, Actions -->
+      <aside class="sidebar sidebar-left">
+        <!-- Status Card -->
+        <div class="card status-card">
+          <div class="card-header">Game Status</div>
+          <div class="card-body">
+            <div id="turnBanner" class="turn-banner black-turn">
+              <span class="turn-dot"></span>
+              <span id="turnText">Black's Turn</span>
+            </div>
+            <div class="player-role-info">
+              <span>Your Role: </span>
+              <strong id="playerRoleDisplay">Black</strong>
+            </div>
+            <div id="opponentStatus" class="opponent-status">
+              Waiting for opponent...
+            </div>
+          </div>
+        </div>
+
+        <!-- Captures Scorecard -->
+        <div class="card captures-card">
+          <div class="card-header">Captures</div>
+          <div class="card-body captures-grid">
+            <div class="capture-box">
+              <span class="stone-icon black"></span>
+              <span class="cap-label">Black:</span>
+              <span id="blackCaptures" class="cap-value">0</span>
+            </div>
+            <div class="capture-box">
+              <span class="stone-icon white"></span>
+              <span class="cap-label">White:</span>
+              <span id="whiteCaptures" class="cap-value">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card actions-card">
+          <div class="card-header">Actions</div>
+          <div class="card-body action-buttons">
+            <button id="btnPass" class="btn btn-warning">Pass Turn</button>
+            <button id="btnResign" class="btn btn-danger">Resign</button>
+          </div>
+        </div>
+
+        <!-- Scoring Panel (Visible during Scoring / Game Over) -->
+        <div id="scoringPanel" class="card scoring-card hidden">
+          <div class="card-header highlight">Chinese Area Scoring</div>
+          <div class="card-body">
+            <p class="scoring-desc">
+              <strong>Area = Stones + Territory + Komi</strong>
+              <small>Click any dead stone group to toggle dead/alive.</small>
+            </p>
+            <div class="score-breakdown">
+              <div class="score-row black-row">
+                <span class="stone-icon black"></span>
+                <span>Black:</span>
+                <span id="scoreBlackStones">0</span> st + 
+                <span id="scoreBlackTerritory">0</span> ter = 
+                <strong id="scoreBlackTotal">0</strong>
+              </div>
+              <div class="score-row white-row">
+                <span class="stone-icon white"></span>
+                <span>White:</span>
+                <span id="scoreWhiteStones">0</span> st + 
+                <span id="scoreWhiteTerritory">0</span> ter + 
+                <span id="scoreKomi">7.5</span> = 
+                <strong id="scoreWhiteTotal">7.5</strong>
+              </div>
+            </div>
+            <div id="scoreWinnerBanner" class="winner-banner"></div>
+            <div class="scoring-actions">
+              <button id="btnConfirmScore" class="btn btn-success">Accept Score</button>
+              <button id="btnResumePlay" class="btn btn-secondary">Resume</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: Large Board Section -->
+      <section class="board-section">
+        <div id="ruleNotification" class="notification hidden"></div>
+        <div class="canvas-wrapper">
+          <canvas id="goBoard" width="700" height="700"></canvas>
+        </div>
+      </section>
+
+      <!-- RIGHT SIDEBAR: Room Info, Game Setup, Enforced Rules -->
+      <aside class="sidebar sidebar-right">
+        <!-- Room Info Card -->
+        <div class="card room-card">
+          <div class="card-header">Room Info</div>
+          <div class="card-body">
+            <!-- Initial state: input room code -->
+            <div id="roomInputContainer" class="room-input-container">
+              <input type="text" id="roomCodeInput" placeholder="Enter Room Code" maxlength="8" spellcheck="false" autocomplete="off">
+            </div>
+
+            <!-- Active room state: pill showing room code -->
+            <div id="roomPillDisplay" class="room-pill hidden">
+              <span class="label">Room:</span>
+              <strong id="roomIdDisplay">------</strong>
+            </div>
+
+            <!-- Initial state buttons: Join Room and Create New Room -->
+            <div id="roomInitialButtons" class="room-buttons">
+              <button id="btnJoinRoom" class="btn btn-primary btn-full">Join Room</button>
+              <button id="btnCreateRoom" class="btn btn-secondary btn-full">Create New Room</button>
+            </div>
+
+            <!-- Active room state buttons: Copy Link and End/Leave Room -->
+            <div id="roomActiveButtons" class="room-buttons hidden">
+              <button id="copyLinkBtn" class="btn btn-secondary btn-full" title="Copy room link">Copy Room Link</button>
+              <button id="btnEndOrLeaveRoom" class="btn btn-danger btn-full">End Room</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Setup Card -->
+        <div class="card settings-card">
+          <div class="card-header">Game Setup</div>
+          <div class="card-body">
+            <div id="boardSizeRow" class="setup-row">
+              <label for="boardSizeSelect">Board Size:</label>
+              <select id="boardSizeSelect">
+                <option value="19" selected>19&times;19 (Standard)</option>
+                <option value="13">13&times;13 (Medium)</option>
+                <option value="9">9&times;9 (Quick)</option>
+              </select>
+            </div>
+            <div class="setup-row">
+              <label for="toggleCoords">Coordinates:</label>
+              <label class="switch">
+                <input type="checkbox" id="toggleCoords">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setup-row">
+              <label for="boardColorPicker">Board Color:</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="boardColorPicker" value="#b8bfc7">
+              </div>
+            </div>
+            <button id="btnRestartGame" class="btn btn-secondary btn-full">Restart Board</button>
+          </div>
+        </div>
+
+        <!-- Rules Reference -->
+        <div class="card rules-card">
+          <div class="card-header">Enforced Rules</div>
+          <div class="card-body">
+            <ul class="rules-list">
+              <li><strong>Placement:</strong> Empty intersections on player turn.</li>
+              <li><strong>Captures:</strong> Groups with 0 liberties removed.</li>
+              <li><strong>Suicide Rule:</strong> Zero-liberty moves forbidden unless capturing.</li>
+              <li><strong>Ko Rule:</strong> Immediate board repetition forbidden.</li>
+              <li><strong>Ending &amp; Scoring:</strong> 2 passes trigger Chinese Area Counting (Stones + Territory + Komi).</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Socket.IO library loaded from server -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="client.js"></script>
+</body>
+</html>

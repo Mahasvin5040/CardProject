@@ -1,12 +1,12 @@
 :root {
-  /* Minimalist studio / stone palette from image */
+  /* Minimalist light palette */
   --bg-gradient: radial-gradient(circle at 50% 30%, #dbe0e6 0%, #c5cbd2 100%);
-  --slab-bg: #dfe2e6;
-  --slab-border: #ccd1d7;
   --slab-bg: #b8bfc7;
   --slab-border: #a4abb4;
-  /*--card-bg: rgba(255, 255, 255, 0.72);*/
+  --card-bg: rgba(255, 255, 255, 0.72);
   --card-border: rgba(255, 255, 255, 0.85);
+  --card-header-bg: rgba(255, 255, 255, 0.35);
+  --card-header-border: rgba(0, 0, 0, 0.05);
   --text-main: #1e2229;
   --text-secondary: #586171;
   --text-muted: #7e8796;
@@ -17,7 +17,44 @@
   --danger-color: #c53929;
   --warning-color: #b45309;
   --success-color: #2b8a3e;
+  --btn-sec-bg: #ffffff;
+  --btn-sec-color: #1e2229;
+  --btn-sec-border: rgba(0, 0, 0, 0.12);
+  --input-bg: #ffffff;
+  --input-color: #1e2229;
+  --input-border: rgba(0, 0, 0, 0.15);
+  --subtle-box-bg: rgba(0, 0, 0, 0.04);
+  --subtle-box-border: rgba(0, 0, 0, 0.05);
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+}
+
+body.dark-mode {
+  /* Minimalist dark palette - charcoal board so black tiles are clearly visible */
+  --bg-gradient: radial-gradient(circle at 50% 25%, #181c24 0%, #0d1015 100%);
+  --slab-bg: #2a2f3a;
+  --slab-border: #3d4554;
+  --card-bg: rgba(26, 30, 39, 0.88);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-header-bg: rgba(255, 255, 255, 0.04);
+  --card-header-border: rgba(255, 255, 255, 0.07);
+  --text-main: #f1f5f9; /* White / off-white text */
+  --text-secondary: #cbd5e1; /* Off-white secondary text */
+  --text-muted: #718096;
+  --stone-black: #141519;
+  --stone-white: #fafbfc;
+  --accent-dark: #38bdf8;
+  --accent-subtle: #94a3b8;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --success-color: #10b981;
+  --btn-sec-bg: #222733;
+  --btn-sec-color: #f1f5f9;
+  --btn-sec-border: rgba(255, 255, 255, 0.12);
+  --input-bg: #141720;
+  --input-color: #f8fafc;
+  --input-border: rgba(255, 255, 255, 0.15);
+  --subtle-box-bg: rgba(255, 255, 255, 0.05);
+  --subtle-box-border: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -37,6 +74,7 @@ body {
   align-items: center;
   justify-content: center;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
@@ -52,10 +90,29 @@ body {
 /* Minimalist Header */
 .app-header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  text-align: center;
+  position: relative;
+  width: 100%;
   padding-bottom: 4px;
+  min-height: 44px;
+}
+
+.back-home-btn {
+  text-decoration: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.logo-area {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
 }
 
 .logo-area h1 {
@@ -72,6 +129,76 @@ body {
   letter-spacing: 0.8px;
   color: var(--text-secondary);
   text-transform: uppercase;
+}
+
+/* Theme Switch Toggle on Top-Right Corner */
+.theme-switch-container {
+  display: flex;
+  align-items: center;
+}
+
+.theme-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background: var(--btn-sec-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--btn-sec-border);
+  padding: 5px 10px;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.theme-toggle-label:hover {
+  filter: brightness(1.08);
+}
+
+.theme-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.theme-switch {
+  width: 30px;
+  height: 16px;
+}
+
+.theme-slider {
+  border-radius: 16px;
+  background-color: #cbd5e1;
+}
+
+.theme-slider:before {
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  bottom: 2px;
+}
+
+input:checked + .theme-slider {
+  background-color: #38bdf8;
+}
+
+input:checked + .theme-slider:before {
+  transform: translateX(14px);
+}
+
+@media (max-width: 680px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+  }
+  .logo-area {
+    position: static;
+    transform: none;
+    order: -1;
+    width: 100%;
+    text-align: center;
+  }
 }
 
 /* Main 3-Column Layout: Center column set to 45% of screen width */
@@ -119,6 +246,11 @@ body {
   border-radius: 12px;
   box-shadow: 0 8px 20px -6px rgba(30, 40, 50, 0.08), 0 2px 6px rgba(30, 40, 50, 0.03);
   overflow: hidden;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+body.dark-mode .card {
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card-header {
@@ -128,8 +260,8 @@ body {
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-secondary);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  background: rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid var(--card-header-border);
+  background: var(--card-header-bg);
 }
 
 .card-header.highlight {
@@ -166,6 +298,18 @@ body {
   color: #1b1d22;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+body.dark-mode .turn-banner.black-turn {
+  background: #111317;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .turn-banner.white-turn {
+  background: #232833;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .turn-dot {
@@ -212,7 +356,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--subtle-box-bg);
+  border: 1px solid var(--subtle-box-border);
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -289,9 +434,9 @@ body {
 }
 
 .btn-secondary {
-  background-color: #ffffff;
-  color: var(--text-main);
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: var(--btn-sec-bg);
+  color: var(--btn-sec-color);
+  border: 1px solid var(--btn-sec-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
@@ -331,7 +476,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--subtle-box-bg);
+  border: 1px solid var(--subtle-box-border);
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -371,7 +517,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--subtle-box-bg);
+  border: 1px solid var(--subtle-box-border);
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -398,9 +545,9 @@ body {
 }
 
 .setup-row select {
-  background: #ffffff;
-  color: var(--text-main);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: var(--input-bg);
+  color: var(--input-color);
+  border: 1px solid var(--input-border);
   padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
@@ -530,6 +677,14 @@ input[type="color"]#boardColorPicker::-moz-color-swatch {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+body.dark-mode .canvas-wrapper {
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.75),
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.5);
+}
+
 canvas#goBoard {
   display: block;
   cursor: pointer;
@@ -581,14 +736,14 @@ canvas#goBoard {
 .room-input-container input#roomCodeInput {
   width: 100%;
   padding: 8px 12px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--text-main);
+  color: var(--input-color);
   text-align: center;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

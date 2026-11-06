@@ -4,6 +4,9 @@ const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
 
+const COLUMN_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+const CELL_SIZE = 36; // Fixed cell size across all board sizes so tile dimensions remain identical
+
 // Initialize or restore playerId from sessionStorage
 let playerId = sessionStorage.getItem('go_player_id');
 if (!playerId) {
@@ -74,10 +77,80 @@ let currentPlayers = { black: false, white: false };
 let hoverCoord = null;
 let notificationTimeout = null;
 let showCoordinates = false; // Minimalist aesthetic as in photo
-let boardColor = localStorage.getItem('go_board_color') || '#b8bfc7';
+const toggleTheme = document.getElementById('toggleTheme');
+let isDarkMode = localStorage.getItem('go_theme') === 'dark';
+let boardColor = localStorage.getItem('go_board_color') || (isDarkMode ? '#2a2f3a' : '#b8bfc7');
 
-// Apply saved or default board color to CSS slab wrapper
-document.documentElement.style.setProperty('--slab-bg', boardColor);
+function getBoardColors() {
+  if (isDarkMode) {
+    return {
+      lineColor: 'rgba(235, 240, 246, 0.45)', // off-white board lines
+      outerBorderColor: 'rgba(240, 245, 250, 0.7)', // off-white border
+      starPointColor: '#e2e8f0', // off-white star points
+      coordTextColor: '#cbd5e1', // off-white text
+      blackStoneColor: '#121418',
+      blackStoneRim: null, //'rgba(255, 255, 255, 0.18)',
+      whiteStoneColor: '#ffffff',
+      whiteStoneRim: null //'rgba(0, 0, 0, 0.25)'
+    };
+  } else {
+    return {
+      lineColor: '#22252a',
+      outerBorderColor: '#22252a',
+      starPointColor: '#22252a',
+      coordTextColor: '#586171',
+      blackStoneColor: '#17181c',
+      blackStoneRim: null,
+      whiteStoneColor: '#ffffff',
+      whiteStoneRim: null
+    };
+  }
+}
+
+function updateRoleDisplay(role) {
+  playerRoleDisplay.textContent = role ? role.toUpperCase() : 'NONE';
+  if (role === 'black') {
+    playerRoleDisplay.style.color = isDarkMode ? '#f8fafc' : '#111827';
+  } else if (role === 'white') {
+    playerRoleDisplay.style.color = isDarkMode ? '#93c5fd' : '#475569';
+  } else {
+    playerRoleDisplay.style.color = 'var(--text-muted)';
+  }
+}
+
+function applyTheme(darkMode) {
+  isDarkMode = darkMode;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+  if (toggleTheme) toggleTheme.checked = isDarkMode;
+  localStorage.setItem('go_theme', isDarkMode ? 'dark' : 'light');
+
+  const lightDefault = '#b8bfc7';
+  const darkDefault = '#2a2f3a';
+
+  // Automatically adapt default board color if user has not customized it
+  if (isDarkMode && (!boardColor || boardColor.toLowerCase() === lightDefault.toLowerCase())) {
+    boardColor = darkDefault;
+    if (boardColorPicker) boardColorPicker.value = boardColor;
+    localStorage.setItem('go_board_color', boardColor);
+  } else if (!isDarkMode && (!boardColor || boardColor.toLowerCase() === darkDefault.toLowerCase())) {
+    boardColor = lightDefault;
+    if (boardColorPicker) boardColorPicker.value = boardColor;
+    localStorage.setItem('go_board_color', boardColor);
+  }
+
+  document.documentElement.style.setProperty('--slab-bg', boardColor);
+  updateRoleDisplay(myRole);
+  drawBoard();
+}
+
+if (toggleTheme) {
+  toggleTheme.addEventListener('change', (e) => {
+    applyTheme(e.target.checked);
+  });
+}
+
+// Initial theme application
+applyTheme(isDarkMode);
 
 if (boardColorPicker) {
   boardColorPicker.value = boardColor;
@@ -163,8 +236,7 @@ function resetToInitialScreen() {
   // Status & Captures reset
   turnBanner.className = 'turn-banner';
   turnText.textContent = 'No Active Game';
-  playerRoleDisplay.textContent = 'None';
-  playerRoleDisplay.style.color = '#7e8796';
+  updateRoleDisplay('none');
   opponentStatus.textContent = 'Create or join a room to play';
   opponentStatus.style.display = 'block';
   blackCapturesEl.textContent = '0';
@@ -391,15 +463,7 @@ socket.on('room_joined', ({ roomId: joinedRoomId, role, isHost: hostStatus, game
   currentPlayers = players || { black: true, white: false };
 
   setupActiveRoomUI(hostStatus);
-
-  playerRoleDisplay.textContent = role.toUpperCase();
-  if (role === 'black') {
-    playerRoleDisplay.style.color = '#fff';
-  } else if (role === 'white') {
-    playerRoleDisplay.style.color = '#e0e0e0';
-  } else {
-    playerRoleDisplay.style.color = '#9aa2b1';
-  }
+  updateRoleDisplay(role);
 
   updatePlayerPresence(currentPlayers);
   updateGameState(state);
@@ -550,9 +614,6 @@ function renderScoring(state) {
 
 // ---------------- Go Board Drawing Engine ---------------- //
 
-const COLUMN_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
-const CELL_SIZE = 36; // Fixed cell size across all board sizes so tile dimensions remain identical
-
 function getStarPoints(size) {
   if (size === 19) {
     return [
@@ -619,18 +680,19 @@ function drawBoard() {
 
   const width = canvas.width;
   const height = canvas.height;
+  const colors = getBoardColors();
 
   // Clear Canvas with chosen board color
   ctx.fillStyle = boardColor;
   ctx.fillRect(0, 0, width, height);
 
   // Outer border line
-  ctx.strokeStyle = '#22252a';
+  ctx.strokeStyle = colors.outerBorderColor;
   ctx.lineWidth = 1.6;
   ctx.strokeRect(padding, padding, (size - 1) * cellSize, (size - 1) * cellSize);
 
   // Draw Inner Grid Lines
-  ctx.strokeStyle = '#22252a';
+  ctx.strokeStyle = colors.lineColor;
   ctx.lineWidth = 1.15;
 
   for (let i = 1; i < size - 1; i++) {
@@ -651,7 +713,7 @@ function drawBoard() {
 
   // Draw Star Points (Hoshi)
   const starPoints = getStarPoints(size);
-  ctx.fillStyle = '#22252a';
+  ctx.fillStyle = colors.starPointColor;
   for (const pt of starPoints) {
     const pos = boardToCanvas(pt.r, pt.c);
     ctx.beginPath();
@@ -661,7 +723,7 @@ function drawBoard() {
 
   // Draw Coordinate Labels only if enabled
   if (showCoordinates) {
-    ctx.fillStyle = '#586171';
+    ctx.fillStyle = colors.coordTextColor;
     ctx.font = `600 ${Math.max(10, cellSize * 0.28)}px -apple-system, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -696,21 +758,26 @@ function drawBoard() {
           // Black Territory: sleek dark square
           const pos = boardToCanvas(r, c);
           const sqSize = cellSize * 0.28;
-          ctx.fillStyle = '#17181c';
+          ctx.fillStyle = '#121418';
           ctx.fillRect(pos.x - sqSize / 2, pos.y - sqSize / 2, sqSize, sqSize);
+          if (isDarkMode) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(pos.x - sqSize / 2, pos.y - sqSize / 2, sqSize, sqSize);
+          }
         } else if (t === WHITE) {
           // White Territory: sleek white square with subtle border
           const pos = boardToCanvas(r, c);
           const sqSize = cellSize * 0.28;
           ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+          ctx.strokeStyle = isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.2)';
           ctx.lineWidth = 1;
           ctx.fillRect(pos.x - sqSize / 2, pos.y - sqSize / 2, sqSize, sqSize);
           ctx.strokeRect(pos.x - sqSize / 2, pos.y - sqSize / 2, sqSize, sqSize);
         } else if (t === 3) {
           // Dame (Neutral): tiny neutral dot
           const pos = boardToCanvas(r, c);
-          ctx.fillStyle = '#6b7280';
+          ctx.fillStyle = isDarkMode ? '#94a3b8' : '#6b7280';
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, cellSize * 0.08, 0, Math.PI * 2);
           ctx.fill();
@@ -759,6 +826,7 @@ function drawBoard() {
 
 function drawStone(r, c, color, radius, isDead = false) {
   const pos = boardToCanvas(r, c);
+  const colors = getBoardColors();
   ctx.save();
 
   if (isDead) {
@@ -766,16 +834,29 @@ function drawStone(r, c, color, radius, isDead = false) {
   }
 
   // Light shadow gradient ~7px diagonally to the bottom-left
-  ctx.shadowColor = color === BLACK ? 'rgba(0, 0, 0, 0.24)' : 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowColor = color === BLACK
+    ? (isDarkMode ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.24)')
+    : (isDarkMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.18)');
   ctx.shadowBlur = 7;
   ctx.shadowOffsetX = -5; // negative = left (~7px diagonal with offset-y: 5)
   ctx.shadowOffsetY = 5;  // positive = bottom
 
-  // Singular solid color circle, no outline or glare
-  ctx.fillStyle = color === BLACK ? '#17181c' : '#ffffff';
+  // Singular solid color circle
+  ctx.fillStyle = color === BLACK ? colors.blackStoneColor : colors.whiteStoneColor;
   ctx.beginPath();
   ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
   ctx.fill();
+
+  // Subtle tactile rim so black stones stand out distinctly on dark slate board
+  if (color === BLACK && colors.blackStoneRim) {
+    ctx.strokeStyle = colors.blackStoneRim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (color === WHITE && colors.whiteStoneRim) {
+    ctx.strokeStyle = colors.whiteStoneRim;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
 
   ctx.restore();
 
@@ -797,14 +878,20 @@ function drawStone(r, c, color, radius, isDead = false) {
 
 function drawGhostStone(r, c, color, radius) {
   const pos = boardToCanvas(r, c);
+  const colors = getBoardColors();
   ctx.save();
   ctx.globalAlpha = 0.35;
 
-  // Singular solid color circle, no outline
-  ctx.fillStyle = color === BLACK ? '#17181c' : '#ffffff';
+  ctx.fillStyle = color === BLACK ? colors.blackStoneColor : colors.whiteStoneColor;
   ctx.beginPath();
   ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
   ctx.fill();
+
+  if (color === BLACK && colors.blackStoneRim) {
+    ctx.strokeStyle = colors.blackStoneRim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
   ctx.restore();
 }

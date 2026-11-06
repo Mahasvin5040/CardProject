@@ -11,13 +11,21 @@
 <body class="not-in-room">
   <div class="app-container">
     <!-- Top Minimalist Header -->
-    <header class="app-header" style="position: relative;">
-      <a href="/" class="btn btn-secondary"
-        style="text-decoration: none; position: absolute; left: 0; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">&larr;
-        Card Game</a>
+    <header class="app-header">
+      <a href="/" class="btn btn-secondary back-home-btn">&larr; Card Game</a>
       <div class="logo-area">
         <h1>Go</h1>
         <span class="subtext">Minimalist &middot; Online Multiplayer</span>
+      </div>
+      <div class="theme-switch-container">
+        <label class="theme-toggle-label" for="toggleTheme" title="Toggle Light / Dark Mode">
+          <span class="theme-icon sun-icon" aria-hidden="true">&#9728;&#xFE0E;</span>
+          <span class="switch theme-switch">
+            <input type="checkbox" id="toggleTheme" aria-label="Toggle dark mode">
+            <span class="slider theme-slider"></span>
+          </span>
+          <span class="theme-icon moon-icon" aria-hidden="true">&#9790;&#xFE0E;</span>
+        </label>
       </div>
     </header>
 
